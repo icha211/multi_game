@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MULTIPLAYER INTERMEDIATE (INTERMEDIATE)</title>
+    <style>
+        /* CSS VARIABLES */
+        :root { --bg: #0f172a; --card: #1e293b; --sidebar: #111827; --primary: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --danger: #f87171; --success: #4ade80; --warning: #fbbf24; --p1: #3b82f6; --p2: #ef4444; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; height: 100vh; overflow: hidden; transition: background-color 0.3s; }
+        
+        /* INTRO SCREEN */
+        #intro-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; transition: opacity 0.5s ease-out; }
+        #particle-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .intro-content { z-index: 10; text-align: center; position: relative; width: 100%; max-width: 800px; padding: 20px; }
+        
+        .intro-title { font-size: 3.5rem; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 3px; text-shadow: 0 0 20px rgba(56, 189, 248, 0.3); font-weight: 800; }
+        .intro-subtitle { font-size: 1.2rem; color: var(--muted); margin-bottom: 30px; }
+        
+        #name-screen { display: flex; flex-direction: column; align-items: center; gap: 14px; animation: fadeIn 0.5s ease-in; }
+        .mp-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .mp-input { width: 260px; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: var(--bg); color: var(--text); font-size: 0.95rem; text-align: center; }
+        .mp-select { width: 140px; }
+        .mp-status { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+        .mp-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.7rem; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.5); color: var(--primary); }
+
+        /* MAIN APP */
+        #main-app { display: none; width: 100%; height: 100vh; flex-direction: row; }
+        
+        .sidebar { width: 250px; background: var(--sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; padding: 20px 10px; gap: 5px; overflow-y: auto; flex-shrink: 0; }
+        .sidebar-header { font-size: 1.2rem; font-weight: bold; color: var(--primary); margin-bottom: 5px; padding-left: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .user-welcome { font-size: 0.85rem; color: var(--success); padding-left: 10px; margin-bottom: 8px; font-weight: 500; }
+        .people-label { font-size: 0.7rem; color: var(--muted); padding-left: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .people-list { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 10px 10px; }
+        .people-item { background: rgba(255,255,255,0.05); border: 1px solid #334155; border-radius: 8px; padding: 6px 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; }
+        .people-role { font-size: 0.7rem; color: var(--primary); text-transform: uppercase; }
+        .nav-category { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; margin: 15px 0 5px 10px; font-weight: bold; }
+        .tab-btn { background: transparent; color: var(--text); border: none; padding: 12px 15px; cursor: pointer; border-radius: 8px; font-size: 0.95rem; text-align: left; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+        .tab-btn:hover { background: rgba(255,255,255,0.05); }
+        .tab-btn.active { background: var(--primary); color: #0f172a; font-weight: bold; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        
+        .back-btn { background: rgba(248, 113, 113, 0.2); color: var(--danger); border: 1px solid var(--danger); margin-bottom: 20px; font-weight: bold; justify-content: center; }
+        .back-btn:hover { background: var(--danger); color: white; }
+
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; background: var(--bg); }
+        .content-container { background: var(--card); padding: 2.5rem; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); width: 100%; max-width: 900px; border: 1px solid #334155; position: relative; transition: background-color 0.3s; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CONTROLS */
+        .game-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 10px; flex-wrap: wrap; gap: 10px; }
+        .left-controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        
+        .music-wrapper { display: flex; align-items: center; border-left: 1px solid #475569; padding-left: 15px; margin-left: 5px; }
+        .music-btn { background: none; border: 1px solid #475569; color: var(--muted); cursor: pointer; font-size: 1.2rem; padding: 5px 10px; border-radius: 5px; transition: 0.3s; margin-right: 10px; }
+        .music-btn.playing { color: var(--success); border-color: var(--success); box-shadow: 0 0 10px rgba(74, 222, 128, 0.2); }
+        .music-btn:hover { background: rgba(255,255,255,0.1); }
+        input[type=range] { width: 70px; height: 5px; background: #475569; border-radius: 5px; outline: none; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--primary); cursor: pointer; transition: 0.2s; }
+        .theme-select { margin-left: 15px; padding: 5px; border-radius: 5px; background: var(--bg); color: var(--text); border: 1px solid #475569; }
+
+        /* TAB UI */
+        h1 { color: var(--primary); text-align: center; margin: 10px 0 20px 0; font-size: 2rem; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        input { width: 93%; padding: 14px; border-radius: 8px; border: 2px solid #475569; background: var(--bg); color: var(--text); font-size: 1.1rem; text-align: center; transition: 0.3s; }
+        input:focus { border-color: var(--primary); outline: none; }
+        .btns { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
+        button.action-btn { background: var(--primary); color: var(--bg); border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; z-index: 20; position: relative; }
+        button.action-btn:active { transform: scale(0.95); }
+        
+        /* BATTLE MODE STYLES */
+        .battle-arena { display: flex; justify-content: space-between; flex: 1; align-items: center; gap: 10px; width: 100%; margin-top: 20px; }
+        .player-zone { flex: 1; height: 280px; border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; border: 3px solid; background: rgba(0,0,0,0.2); transition: 0.2s; }
+        .p1-zone { border-color: #3b82f6; }
+        .p2-zone { border-color: #ef4444; }
+        .p-score { font-size: 4rem; font-weight: 800; margin: 0; }
+        .p-label { font-size: 1.2rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        .p1-zone .p-label { color: #3b82f6; }
+        .p2-zone .p-label { color: #ef4444; }
+        .keys-hint { margin-top: 15px; font-size: 0.8rem; color: var(--muted); text-align: center; line-height: 1.8; }
+        .key-box { display: inline-block; padding: 2px 8px; border: 1px solid var(--muted); border-radius: 5px; margin: 0 5px; font-family: monospace; font-weight: bold; color: var(--text); background: rgba(255,255,255,0.1); }
+        
+        .battle-center { width: 100%; text-align: center; margin-top: 20px; border-top: 1px solid #334155; padding-top: 20px; }
+        .battle-settings { width: 100%; text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; border: 1px solid #334155; }
+        .b-word { font-size: 2.2rem; color: var(--text); font-weight: bold; display: block; margin-bottom: 5px; }
+        .b-connector { color: var(--muted); font-style: italic; font-size: 0.9rem; margin-bottom: 5px; }
+        .b-def { font-size: 1.3rem; color: var(--primary); font-weight: 500; min-height: 30px; }
+        .battle-feedback { font-size: 1.5rem; font-weight: 800; margin-top: 10px; height: 30px; }
+
+        /* DUEL CHOICE STYLES */
+        .duel-options { display: flex; gap: 20px; width: 100%; margin-top: 30px; }
+        .duel-opt { flex: 1; padding: 30px; border: 2px solid #475569; border-radius: 12px; font-size: 1.5rem; font-weight: bold; cursor: pointer; transition: 0.2s; background: rgba(0,0,0,0.3); text-align: center; }
+        .duel-opt.left-opt { border-color: #3b82f6; }
+        .duel-opt.right-opt { border-color: #ef4444; }
+        .duel-opt.correct { background: var(--success); color: var(--bg); border-color: var(--success); }
+
+        /* TRIPLE THREAT STYLES */
+        .triple-options { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 20px; }
+        .triple-opt { width: 100%; padding: 15px; border: 1px solid #475569; border-radius: 8px; font-size: 1.2rem; cursor: pointer; background: rgba(0,0,0,0.3); transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .triple-opt.correct { background: var(--success); color: var(--bg); border-color: var(--success); }
+        .triple-key { font-family: monospace; font-weight: bold; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-size: 0.9rem; }
+
+        /* SNIPER MODE STYLES */
+        .sniper-container { width: 100%; text-align: center; padding: 20px; }
+        .sniper-target { font-size: 3rem; color: var(--warning); font-weight: bold; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+        .sniper-scope { width: 100%; height: 100px; background: #000; border: 4px solid var(--danger); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 30px; overflow: hidden; box-shadow: 0 0 20px var(--danger); }
+        .sniper-scope::before { content: ""; position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background: rgba(255,0,0,0.5); }
+        .sniper-scope::after { content: ""; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(255,0,0,0.5); }
+        .sniper-text { font-size: 1.5rem; color: #fff; z-index: 5; font-weight: bold; padding: 0 20px; }
+
+        .table-wrapper { max-height: 500px; overflow-y: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #334155; vertical-align: top; }
+        th { position: sticky; top: 0; background: var(--card); color: var(--primary); z-index: 10; }
+        .search-bar { width: 95%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid #475569; background: var(--bg); color: var(--text); }
+        .speak-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-left: 8px; transition: 0.2s; }
+        .speak-btn:hover { transform: scale(1.2); }
+
+        @media (max-width: 768px) {
+            #main-app { flex-direction: column; }
+            .sidebar { width: 100%; height: 100px; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #334155; padding: 10px; align-items: center; }
+            .sidebar-header, .nav-category, .user-welcome { display: none; }
+            .tab-btn { flex-direction: column; font-size: 0.7rem; text-align: center; padding: 8px; gap: 5px; min-width: 80px; justify-content: center; }
+            .main-content { padding: 15px; }
+            .content-container { padding: 1.5rem; }
+            .battle-arena { flex-direction: column; }
+            .player-zone { width: 100%; height: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+<audio id="bg-music" loop><source src="backsound.mp3" type="audio/mpeg"></audio>
+<audio id="sfx-correct"><source src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" type="audio/mpeg"></audio>
+<audio id="sfx-wrong"><source src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3" type="audio/mpeg"></audio>
+
+<div id="intro-screen">
+    <canvas id="particle-canvas"></canvas>
+    <div class="intro-content">
+        <div class="intro-title">INTERMEDIATE</div>
+        <div class="intro-subtitle">Vocabulary Battle Arena (Intermediate)</div>
+        
+        <div id="name-screen">
+            <input id="player-name" class="mp-input" type="text" maxlength="20" placeholder="Your name (optional)">
+            <div class="mp-row">
+                <input id="room-code" class="mp-input" type="text" maxlength="6" placeholder="Room code (leave blank to create)">
+                <select id="player-role" class="mp-input mp-select">
+                    <option value="p1">Player 1</option>
+                    <option value="p2">Player 2</option>
+                </select>
+            </div>
+            <div class="mp-row">
+                <button class="action-btn" onclick="connectMultiplayer()">CONNECT</button>
+                <button class="action-btn" onclick="startGame()">ENTER ARENA</button>
+            </div>
+            <div class="mp-status" id="mp-status">Offline</div>
+        </div>
+    </div>
+</div>
+
+<div id="main-app">
+    <nav class="sidebar">
+        <div class="sidebar-header">MENU</div>
+        <div class="user-welcome" id="display-user-name">Welcome, Player</div>
+        <div class="people-label">People in Room <span id="room-code-label"></span></div>
+        <div class="people-list" id="people-list">
+            <div class="people-item"><span>Waiting...</span><span class="people-role">--</span></div>
+        </div>
+        
+        <button class="tab-btn back-btn" onclick="goToMenu()"><span>⬅</span> <span>Quit Game</span></button>
+
+        <div class="nav-category">Multiplayer Games</div>
+        <button class="tab-btn active" id="tab-battle-btn" onclick="openTab(event, 'battle-tab')"><span class="tab-icon">⚔️</span> <span>1 vs 1 Battle</span></button>
+        <button class="tab-btn" id="tab-duel-btn" onclick="openTab(event, 'duel-tab')"><span class="tab-icon">🤜🤛</span> <span>Duel Choice</span></button>
+        <button class="tab-btn" id="tab-sniper-btn" onclick="openTab(event, 'sniper-tab')"><span class="tab-icon">🎯</span> <span>Sniper Reflex</span></button>
+        <button class="tab-btn" id="tab-triple-btn" onclick="openTab(event, 'triple-tab')"><span class="tab-icon">⚡</span> <span>Triple Threat</span></button>
+
+        <div class="nav-category">Reference</div>
+        <button class="tab-btn" id="tab-list-btn" onclick="openTab(event, 'list-tab')"><span class="tab-icon">📚</span> <span>Word List</span></button>
+    </nav>
+
+    <main class="main-content">
+        <div class="content-container">
+            <div class="game-controls">
+                <div class="left-controls">
+                    <div class="music-wrapper"><button class="music-btn" id="music-toggle" onclick="toggleMusic()">🎵</button><input type="range" id="vol-control" min="0" max="1" step="0.1" value="0.3" oninput="adjustVolume()"></div>
+                    <select class="theme-select" onchange="changeTheme(this.value)"><option value="classic">Classic</option><option value="cyberpunk">Cyberpunk</option><option value="matrix">Matrix</option><option value="royal">Royal</option></select>
+                </div>
+            </div>
+
+            <div id="battle-tab" class="tab-content active">
+                <h1>1 VS 1 Battle (True/False)</h1>
+                <div class="battle-settings">
+                    <span style="color:var(--primary); font-weight:bold; margin-right:10px;">Winning Score:</span>
+                    <input type="number" id="battle-target-score" value="10" min="1" max="100" style="width:70px; display:inline-block; padding:8px;">
+                    <button class="action-btn" style="margin-left:10px; background:var(--warning); color:#000;" onclick="resetBattleGame()">Set Rules / Reset</button>
+                </div>
+                <div class="battle-arena">
+                    <div class="player-zone p1-zone">
+                        <div class="p-label">Player 1</div><div class="p-score" id="p1-score">0</div><div class="keys-hint"><span class="key-box">A</span> True <span class="key-box">S</span> False</div>
+                    </div>
+                    <div class="player-zone p2-zone">
+                        <div class="p-label">Player 2</div><div class="p-score" id="p2-score">0</div><div class="keys-hint"><span class="key-box">K</span> True <span class="key-box">L</span> False</div>
+                    </div>
+                </div>
+                <div class="battle-center"><div class="b-word" id="b-word">READY?</div><div class="b-connector">means</div><div class="b-def" id="b-def">Click Start</div><div class="battle-feedback" id="battle-msg"></div><button class="action-btn" style="margin-top:20px;" onclick="startBattleRound()">START ROUND</button></div>
+            </div>
+
+            <div id="duel-tab" class="tab-content">
+                <h1>Duel Choice</h1>
+                <div class="battle-settings">
+                    <span style="color:var(--primary); font-weight:bold; margin-right:10px;">Winning Score:</span>
+                    <input type="number" id="duel-target-score" value="10" min="1" max="100" style="width:70px; display:inline-block; padding:8px;">
+                    <button class="action-btn" style="margin-left:10px; background:var(--warning); color:#000;" onclick="resetDuelGame()">Set Rules / Start</button>
+                </div>
+                <div class="battle-center">
+                    <div class="b-def" id="duel-def" style="min-height:50px; font-size:1.6rem; margin-bottom:20px;">Press Start</div>
+                    <div class="duel-options">
+                        <div class="duel-opt left-opt" id="duel-opt-1">Word A</div>
+                        <div class="duel-opt right-opt" id="duel-opt-2">Word B</div>
+                    </div>
+                    <div class="battle-feedback" id="duel-msg"></div>
+                </div>
+                <div class="battle-arena" style="margin-top:30px;">
+                    <div class="player-zone p1-zone" style="height:120px;">
+                        <div class="p-label">P1 (Score: <span id="d1-score">0</span>)</div>
+                        <div class="keys-hint"><span class="key-box">A</span> Left <span class="key-box">D</span> Right</div>
+                    </div>
+                    <div class="player-zone p2-zone" style="height:120px;">
+                        <div class="p-label">P2 (Score: <span id="d2-score">0</span>)</div>
+                        <div class="keys-hint"><span class="key-box">J</span> Left <span class="key-box">L</span> Right</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sniper-tab" class="tab-content">
+                <h1>Sniper Reflex</h1>
+                <p style="text-align:center; color:var(--muted); margin-bottom:20px;">Wait for the correct meaning, then SHOOT!</p>
+                <div class="battle-settings">
+                    <span style="color:var(--primary); font-weight:bold; margin-right:10px;">Winning Score:</span>
+                    <input type="number" id="sniper-target-score" value="10" min="1" max="100" style="width:70px; display:inline-block; padding:8px;">
+                    <button class="action-btn" style="margin-left:10px; background:var(--warning); color:#000;" onclick="resetSniperGame()">Set Rules / Start</button>
+                </div>
+                
+                <div class="sniper-container">
+                    <div class="sniper-target" id="sniper-target">TARGET</div>
+                    <div class="sniper-scope">
+                        <div class="sniper-text" id="sniper-text">...</div>
+                    </div>
+                    <div class="battle-feedback" id="sniper-msg"></div>
+                </div>
+
+                <div class="battle-arena">
+                    <div class="player-zone p1-zone" style="height:120px;">
+                        <div class="p-label">P1 (Score: <span id="s1-score">0</span>)</div>
+                        <div class="keys-hint"><span class="key-box">S</span> SHOOT</div>
+                    </div>
+                    <div class="player-zone p2-zone" style="height:120px;">
+                        <div class="p-label">P2 (Score: <span id="s2-score">0</span>)</div>
+                        <div class="keys-hint"><span class="key-box">K</span> SHOOT</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="triple-tab" class="tab-content">
+                <h1>Triple Threat</h1>
+                <div class="battle-settings">
+                    <span style="color:var(--primary); font-weight:bold; margin-right:10px;">Winning Score:</span>
+                    <input type="number" id="triple-target-score" value="10" min="1" max="100" style="width:70px; display:inline-block; padding:8px;">
+                    <button class="action-btn" style="margin-left:10px; background:var(--warning); color:#000;" onclick="resetTripleGame()">Set Rules / Start</button>
+                </div>
+                <div class="battle-center">
+                    <div class="b-word" id="triple-word" style="font-size:2.5rem; margin-bottom:20px;">READY?</div>
+                    <div class="triple-options">
+                        <div class="triple-opt" id="triple-opt-1"><span class="triple-key">A / J</span> <span id="t-text-1">Option 1</span></div>
+                        <div class="triple-opt" id="triple-opt-2"><span class="triple-key">S / K</span> <span id="t-text-2">Option 2</span></div>
+                        <div class="triple-opt" id="triple-opt-3"><span class="triple-key">D / L</span> <span id="t-text-3">Option 3</span></div>
+                    </div>
+                    <div class="battle-feedback" id="triple-msg"></div>
+                </div>
+                <div class="battle-arena" style="margin-top:20px;">
+                    <div class="player-zone p1-zone" style="height:100px;">
+                        <div class="p-label">P1 (Score: <span id="t1-score">0</span>)</div>
+                    </div>
+                    <div class="player-zone p2-zone" style="height:100px;">
+                        <div class="p-label">P2 (Score: <span id="t2-score">0</span>)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="list-tab" class="tab-content"><h1>Vocabulary List</h1><input type="text" class="search-bar" id="search" onkeyup="filterTable()" placeholder="Cari kata..."><div class="table-wrapper"><table><thead><tr><th style="width:25%;">English</th><th style="width:35%;">Meaning</th><th style="width:40%;">Example</th></tr></thead><tbody id="table-body"></tbody></table></div></div>
+        </div>
+    </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    // --- PARTICLE SCRIPT ---
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    let particlesArray = [];
+    const colors = ['#38bdf8', '#818cf8', '#2dd4bf'];
+    class Particle {
+        constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.size = Math.random() * 3 + 1; this.speedX = Math.random() * 1 - 0.5; this.speedY = Math.random() * 1 - 0.5; this.color = colors[Math.floor(Math.random() * colors.length)]; }
+        update() { this.x += this.speedX; this.y += this.speedY; if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX; if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY; }
+        draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); }
+    }
+    function initParticles() { for (let i = 0; i < 50; i++) particlesArray.push(new Particle()); }
+    function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < particlesArray.length; i++) {
+            particlesArray[i].update(); particlesArray[i].draw();
+            for (let j = i; j < particlesArray.length; j++) {
+                const dx = particlesArray[i].x - particlesArray[j].x; const dy = particlesArray[i].y - particlesArray[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 150) { ctx.beginPath(); ctx.strokeStyle = 'rgba(56, 189, 248, 0.1)'; ctx.lineWidth = 1; ctx.moveTo(particlesArray[i].x, particlesArray[i].y); ctx.lineTo(particlesArray[j].x, particlesArray[j].y); ctx.stroke(); }
+            }
+        }
+        requestAnimationFrame(animateParticles);
+    }
+    initParticles(); animateParticles();
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+    // --- SOUND EFFECTS ---
+    const sfxCorrect = document.getElementById('sfx-correct');
+    const sfxWrong = document.getElementById('sfx-wrong');
+    function playCorrect() { sfxCorrect.currentTime = 0; sfxCorrect.play(); }
+    function playWrong() { sfxWrong.currentTime = 0; sfxWrong.play(); }
+
+    function goToMenu() {
+        document.getElementById('main-app').style.display = 'none';
+        const intro = document.getElementById('intro-screen');
+        intro.style.display = 'flex';
+        setTimeout(() => { intro.style.opacity = '1'; }, 10);
+        document.getElementById('name-screen').style.display = 'flex';
+    }
+
+    // --- GAME DATA (250 Words) ---
+    const fullVocab =[
+    { eng: "achieve", idn: "mencapai", ex: "You can achieve your goals." },
+    { eng: "advantage", idn: "keuntungan", ex: "He has a big advantage." },
+    { eng: "ambition", idn: "ambisi", ex: "Her ambition is to be a pilot." },
+    { eng: "ancient", idn: "kuno", ex: "Rome is an ancient city." },
+    { eng: "anxious", idn: "cemas", ex: "I feel anxious about the test." },
+    { eng: "approve", idn: "menyetujui", ex: "My boss will approve the plan." },
+    { eng: "artificial", idn: "buatan", ex: "This is artificial light." },
+    { eng: "attitude", idn: "sikap", ex: "He has a positive attitude." },
+    { eng: "audience", idn: "penonton", ex: "The audience clapped loudly." },
+    { eng: "available", idn: "tersedia", ex: "Is this seat available?" },
+    { eng: "average", idn: "rata-rata", ex: "The temperature is average." },
+    { eng: "avoid", idn: "menghindari", ex: "Avoid eating too much sugar." },
+    { eng: "baggage", idn: "bagasi", ex: "Where is my baggage?" },
+    { eng: "behavior", idn: "tingkah laku", ex: "His behavior was very strange." },
+    { eng: "benefit", idn: "manfaat", ex: "Exercise has many benefits." },
+    { eng: "calculate", idn: "menghitung", ex: "Calculate the total cost." },
+    { eng: "campaign", idn: "kampanye", ex: "The election campaign started." },
+    { eng: "capacity", idn: "kapasitas", ex: "The stadium is at full capacity." },
+    { eng: "caution", idn: "peringatan", ex: "Use caution when driving." },
+    { eng: "celebrity", idn: "selebriti", ex: "She is a famous celebrity." },
+    { eng: "challenge", idn: "tantangan", ex: "Learning English is a challenge." },
+    { eng: "character", idn: "karakter", ex: "He is a man of good character." },
+    { eng: "circumstance", idn: "keadaan", ex: "The circumstances have changed." },
+    { eng: "citizen", idn: "warga negara", ex: "I am a citizen of Indonesia." },
+    { eng: "climate", idn: "iklim", ex: "The climate here is tropical." },
+    { eng: "collapse", idn: "runtuh", ex: "The building might collapse." },
+    { eng: "colleague", idn: "rekan kerja", ex: "I work with my colleagues." },
+    { eng: "collect", idn: "mengumpulkan", ex: "I collect old coins." },
+    { eng: "combine", idn: "menggabungkan", ex: "Combine the blue and red." },
+    { eng: "comfort", idn: "kenyamanan", ex: "I like the comfort of home." },
+    { eng: "command", idn: "perintah", ex: "Wait for my command." },
+    { eng: "commercial", idn: "komersial", ex: "This is a commercial flight." },
+    { eng: "committee", idn: "panitia", ex: "The committee met today." },
+    { eng: "community", idn: "komunitas", ex: "We live in a small community." },
+    { eng: "compare", idn: "membandingkan", ex: "Compare these two phones." },
+    { eng: "compete", idn: "bersaing", ex: "We compete in the race." },
+    { eng: "complain", idn: "mengeluh", ex: "Don't complain about the food." },
+    { eng: "complex", idn: "rumit", ex: "The math problem is complex." },
+    { eng: "confirm", idn: "konfirmasi", ex: "Please confirm your flight." },
+    { eng: "consequence", idn: "konsekuensi", ex: "Think about the consequence." },
+    { eng: "consider", idn: "mempertimbangkan", ex: "Consider all the options." },
+    { eng: "consist", idn: "terdiri dari", ex: "The team consists of five people." },
+    { eng: "constant", idn: "konstan", ex: "He is in constant pain." },
+    { eng: "consume", idn: "mengkonsumsi", ex: "We consume a lot of water." },
+    { eng: "contact", idn: "kontak", ex: "Contact me tomorrow." },
+    { eng: "contain", idn: "berisi", ex: "This box contains books." },
+    { eng: "content", idn: "konten", ex: "The content of the book is good." },
+    { eng: "continue", idn: "melanjutkan", ex: "Please continue reading." },
+    { eng: "contribute", idn: "berkontribusi", ex: "Contribute to the charity." },
+    { eng: "control", idn: "kontrol", ex: "I can control the machine." },
+    { eng: "convenient", idn: "nyaman", ex: "This location is convenient." },
+    { eng: "convince", idn: "meyakinkan", ex: "Convince her to stay." },
+    { eng: "courage", idn: "keberanian", ex: "It takes courage to do that." },
+    { eng: "create", idn: "membuat", ex: "Create a new account." },
+    { eng: "creative", idn: "kreatif", ex: "She is a creative artist." },
+    { eng: "creature", idn: "makhluk", ex: "Strange creatures live here." },
+    { eng: "criticism", idn: "kritik", ex: "I accept your criticism." },
+    { eng: "crowded", idn: "padat", ex: "The bus is very crowded." },
+    { eng: "culture", idn: "budaya", ex: "Indonesia has a rich culture." },
+    { eng: "curious", idn: "penasaran", ex: "I am curious about the news." },
+    { eng: "currency", idn: "mata uang", ex: "What is the local currency?" },
+    { eng: "damage", idn: "kerusakan", ex: "The storm caused damage." },
+    { eng: "debate", idn: "debat", ex: "They had a long debate." },
+    { eng: "decade", idn: "dekade", ex: "Ten years is a decade." },
+    { eng: "declare", idn: "menyatakan", ex: "They declare war." },
+    { eng: "decline", idn: "menurun", ex: "The prices will decline." },
+    { eng: "decorate", idn: "menghias", ex: "Decorate the room for the party." },
+    { eng: "decrease", idn: "berkurang", ex: "The population will decrease." },
+    { eng: "defeat", idn: "mengalahkan", ex: "We will defeat the enemy." },
+    { eng: "defense", idn: "pertahanan", ex: "The army is our defense." },
+    { eng: "define", idn: "mendefinisikan", ex: "Define this word clearly." },
+    { eng: "degree", idn: "gelar/derajat", ex: "I have a college degree." },
+    { eng: "delay", idn: "penundaan", ex: "There is a flight delay." },
+    { eng: "delicate", idn: "halus", ex: "The glass is very delicate." },
+    { eng: "delivery", idn: "pengiriman", ex: "When is the food delivery?" },
+    { eng: "demand", idn: "permintaan", ex: "There is a high demand for oil." },
+    { eng: "demonstrate", idn: "mendemonstrasikan", ex: "Demonstrate how to use it." },
+    { eng: "deny", idn: "menyangkal", ex: "He will deny the truth." },
+    { eng: "depart", idn: "berangkat", ex: "The train will depart soon." },
+    { eng: "depend", idn: "bergantung", ex: "It depends on the weather." },
+    { eng: "describe", idn: "mendeskripsikan", ex: "Describe your home." },
+    { eng: "deserve", idn: "layak", ex: "You deserve a prize." },
+    { eng: "design", idn: "desain", ex: "I like the design of the car." },
+    { eng: "desire", idn: "keinginan", ex: "My desire is to travel." },
+    { eng: "destroy", idn: "menghancurkan", ex: "Don't destroy the forest." },
+    { eng: "detail", idn: "detail", ex: "Explain it in detail." },
+    { eng: "detect", idn: "mendeteksi", ex: "Can you detect a ghost?" },
+    { eng: "determine", idn: "menentukan", ex: "Determine the answer." },
+    { eng: "develop", idn: "mengembangkan", ex: "Develop a new plan." },
+    { eng: "device", idn: "perangkat", ex: "This is a mobile device." },
+    { eng: "diary", idn: "buku harian", ex: "I write in my diary." },
+    { eng: "diet", idn: "diet", ex: "He is on a healthy diet." },
+    { eng: "difference", idn: "perbedaan", ex: "What is the difference?" },
+    { eng: "difficult", idn: "sulit", ex: "The test was difficult." },
+    { eng: "dig", idn: "menggali", ex: "Dig a hole in the ground." },
+    { eng: "direction", idn: "arah", ex: "Which direction should I go?" },
+    { eng: "director", idn: "direktur", ex: "He is the director of the film." },
+    { eng: "disadvantage", idn: "kerugian", ex: "Smoking is a disadvantage." },
+    { eng: "disappear", idn: "menghilang", ex: "The sun will disappear." },
+    { eng: "disappoint", idn: "mengecewakan", ex: "Don't disappoint your mom." },
+    { eng: "disaster", idn: "bencana", ex: "The flood was a disaster." },
+    { eng: "discover", idn: "menemukan", ex: "Discover a new land." },
+    { eng: "discuss", idn: "mendiskusikan", ex: "Discuss the problem." },
+    { eng: "disease", idn: "penyakit", ex: "Flu is a common disease." },
+    { eng: "dislike", idn: "tidak suka", ex: "I dislike spicy food." },
+    { eng: "dismiss", idn: "memberhentikan", ex: "Dismiss the class early." },
+    { eng: "display", idn: "menampilkan", ex: "Display the results." },
+    { eng: "distance", idn: "jarak", ex: "The distance is ten miles." },
+    { eng: "distribute", idn: "mendistribusikan", ex: "Distribute the flyers." },
+    { eng: "district", idn: "distrik", ex: "This is a shopping district." },
+    { eng: "disturb", idn: "mengganggu", ex: "Do not disturb me." },
+    { eng: "divide", idn: "membagi", ex: "Divide the cake in four." },
+    { eng: "divorce", idn: "perceraian", ex: "They got a divorce." },
+    { eng: "document", idn: "dokumen", ex: "Sign the document." },
+    { eng: "domestic", idn: "domestik", ex: "Domestic animals live at home." },
+    { eng: "donate", idn: "menyumbang", ex: "Donate blood today." },
+    { eng: "doubt", idn: "ragu", ex: "I doubt it will rain." },
+    { eng: "dozen", idn: "lusin", ex: "I buy a dozen eggs." },
+    { eng: "drag", idn: "menyeret", ex: "Drag the chair here." },
+    { eng: "drama", idn: "drama", ex: "I like watching drama." },
+    { eng: "dramatic", idn: "dramatis", ex: "It was a dramatic change." },
+    { eng: "dreadful", idn: "mengerikan", ex: "The news was dreadful." },
+    { eng: "drown", idn: "tenggelam", ex: "Can you drown in a pool?" },
+    { eng: "duty", idn: "tugas/kewajiban", ex: "It is my duty to help." },
+    { eng: "eager", idn: "bersemangat", ex: "She is eager to start." },
+    { eng: "earn", idn: "menghasilkan", ex: "Earn money by working." },
+    { eng: "economic", idn: "ekonomi", ex: "The economic situation is bad." },
+    { eng: "economy", idn: "ekonomi", ex: "The global economy is growing." },
+    { eng: "edit", idn: "mengedit", ex: "Edit the video." },
+    { eng: "education", idn: "pendidikan", ex: "Education is important." },
+    { eng: "effect", idn: "efek", ex: "The drug has an effect." },
+    { eng: "effective", idn: "efektif", ex: "This medicine is effective." },
+    { eng: "effort", idn: "usaha", ex: "Make an effort to study." },
+    { eng: "election", idn: "pemilihan", ex: "The presidential election." },
+    { eng: "electric", idn: "listrik", ex: "I have an electric car." },
+    { eng: "element", idn: "unsur", ex: "Water is an element of life." },
+    { eng: "embarrass", idn: "memalukan", ex: "Don't embarrass me." },
+    { eng: "emergency", idn: "darurat", ex: "Call 911 for emergency." },
+    { eng: "emotion", idn: "emosi", ex: "Anger is an emotion." },
+    { eng: "emphasis", idn: "penekanan", ex: "Put emphasis on the word." },
+    { eng: "employ", idn: "mempekerjakan", ex: "They employ ten people." },
+    { eng: "employee", idn: "karyawan", ex: "I am an employee here." },
+    { eng: "employer", idn: "majikan", ex: "The employer is kind." },
+    { eng: "employment", idn: "pekerjaan", ex: "Full-time employment." },
+    { eng: "empty", idn: "kosong", ex: "The glass is empty." },
+    { eng: "encourage", idn: "mendorong", ex: "Encourage your friends." },
+    { eng: "energy", idn: "energi", ex: "I have no energy." },
+    { eng: "engine", idn: "mesin", ex: "The car engine is noisy." },
+    { eng: "engineer", idn: "insinyur", ex: "He is a software engineer." },
+    { eng: "enormous", idn: "sangat besar", ex: "The house is enormous." },
+    { eng: "enough", idn: "cukup", ex: "I have enough money." },
+    { eng: "ensure", idn: "memastikan", ex: "Ensure the door is locked." },
+    { eng: "entertain", idn: "menghibur", ex: "Entertain the guests." },
+    { eng: "enthusiast", idn: "penggemar", ex: "I am a car enthusiast." },
+    { eng: "entire", idn: "seluruh", ex: "I ate the entire pizza." },
+    { eng: "environment", idn: "lingkungan", ex: "Protect the environment." },
+    { eng: "episode", idn: "episode", ex: "Watch the next episode." },
+    { eng: "equal", idn: "sama", ex: "All men are equal." },
+    { eng: "equip", idn: "melengkapi", ex: "Equip the lab with tools." },
+    { eng: "equipment", idn: "peralatan", ex: "Sports equipment." },
+    { eng: "error", idn: "kesalahan", ex: "A system error occurred." },
+    { eng: "escape", idn: "melarikan diri", ex: "Escape from the prison." },
+    { eng: "essential", idn: "penting", ex: "Water is essential." },
+    { eng: "establish", idn: "mendirikan", ex: "Establish a new company." },
+    { eng: "estimate", idn: "memperkirakan", ex: "Estimate the price." },
+    { eng: "event", idn: "acara", ex: "The wedding is a big event." },
+    { eng: "evidence", idn: "bukti", ex: "There is no evidence." },
+    { eng: "exact", idn: "tepat", ex: "The exact time is noon." },
+    { eng: "examine", idn: "memeriksa", ex: "Examine the patient." },
+    { eng: "excellent", idn: "luar biasa", ex: "Your work is excellent." },
+    { eng: "exchange", idn: "pertukaran", ex: "Exchange the money." },
+    { eng: "excite", idn: "menggairahkan", ex: "The news will excite you." },
+    { eng: "exclude", idn: "mengecualikan", ex: "Exclude the tax." },
+    { eng: "excuse", idn: "alasan", ex: "What is your excuse?" },
+    { eng: "executive", idn: "eksekutif", ex: "He is an executive." },
+    { eng: "exercise", idn: "olahraga", ex: "Morning exercise." },
+    { eng: "exhibition", idn: "pameran", ex: "Art exhibition." },
+    { eng: "exist", idn: "ada/eksis", ex: "Ghosts do not exist." },
+    { eng: "expand", idn: "memperluas", ex: "Expand the business." },
+    { eng: "expect", idn: "mengharapkan", ex: "I expect you to pass." },
+    { eng: "expense", idn: "biaya", ex: "The expense is too high." },
+    { eng: "expensive", idn: "mahal", ex: "Gold is expensive." },
+    { eng: "experience", idn: "pengalaman", ex: "I have no experience." },
+    { eng: "experiment", idn: "eksperimen", ex: "Science experiment." },
+    { eng: "expert", idn: "ahli", ex: "He is a computer expert." },
+    { eng: "explain", idn: "menjelaskan", ex: "Explain the rule." },
+    { eng: "explore", idn: "menjelajah", ex: "Explore the ocean." },
+    { eng: "export", idn: "ekspor", ex: "Export oil to China." },
+    { eng: "express", idn: "mengekspresikan", ex: "Express your feelings." },
+    { eng: "extend", idn: "memperpanjang", ex: "Extend the deadline." },
+    { eng: "extra", idn: "tambahan", ex: "I need extra time." },
+    { eng: "extreme", idn: "ekstrim", ex: "Extreme sports." },
+    { eng: "factory", idn: "pabrik", ex: "I work in a factory." },
+    { eng: "failure", idn: "kegagalan", ex: "Failure is a lesson." },
+    { eng: "familiar", idn: "akrab", ex: "Your face looks familiar." },
+    { eng: "famous", idn: "terkenal", ex: "Bali is famous." },
+    { eng: "fashion", idn: "mode", ex: "She loves fashion." },
+    { eng: "feature", idn: "fitur", ex: "A new feature of the app." },
+    { eng: "federal", idn: "federal", ex: "Federal government." },
+    { eng: "fee", idn: "biaya", ex: "Admission fee." },
+    { eng: "feeling", idn: "perasaan", ex: "I have a good feeling." },
+    { eng: "fellow", idn: "teman", ex: "My fellow students." },
+    { eng: "female", idn: "perempuan", ex: "The cat is female." },
+    { eng: "festival", idn: "festival", ex: "Music festival." },
+    { eng: "fiction", idn: "fiksi", ex: "Science fiction book." },
+    { eng: "field", idn: "lapangan", ex: "Rice field." },
+    { eng: "figure", idn: "angka/sosok", ex: "A public figure." },
+    { eng: "file", idn: "file", ex: "Save the file." },
+    { eng: "fill", idn: "mengisi", ex: "Fill the bottle." },
+    { eng: "final", idn: "final", ex: "The final match." },
+    { eng: "finance", idn: "keuangan", ex: "Department of finance." },
+    { eng: "financial", idn: "finansial", ex: "Financial support." },
+    { eng: "firm", idn: "perusahaan/kokoh", ex: "Law firm." },
+    { eng: "flavour", idn: "rasa", ex: "Vanilla flavour." },
+    { eng: "float", idn: "mengapung", ex: "Wood can float." },
+    { eng: "flood", idn: "banjir", ex: "The street is flood." },
+    { eng: "flow", idn: "mengalir", ex: "River flow." },
+    { eng: "focus", idn: "fokus", ex: "Focus on your work." },
+    { eng: "fold", idn: "melipat", ex: "Fold the clothes." },
+    { eng: "force", idn: "kekuatan/paksa", ex: "Police force." },
+    { eng: "foreign", idn: "asing", ex: "Foreign language." },
+    { eng: "forever", idn: "selamanya", ex: "Friends forever." },
+    { eng: "formal", idn: "formal", ex: "Formal dress." },
+    { eng: "formula", idn: "rumus", ex: "Math formula." },
+    { eng: "fortune", idn: "keberuntungan", ex: "He has a big fortune." },
+    { eng: "forward", idn: "maju/depan", ex: "Step forward." },
+    { eng: "foundation", idn: "yayasan/dasar", ex: "Charity foundation." },
+    { eng: "frame", idn: "bingkai", ex: "Photo frame." },
+    { eng: "freeze", idn: "membeku", ex: "Water will freeze." },
+    { eng: "frequent", idn: "sering", ex: "Frequent visitor." },
+    { eng: "fresh", idn: "segar", ex: "Fresh milk." },
+    { eng: "frighten", idn: "menakuti", ex: "Don't frighten me." },
+    { eng: "fuel", idn: "bahan bakar", ex: "Car fuel." },
+    { eng: "function", idn: "fungsi", ex: "Brain function." },
+    { eng: "fund", idn: "dana", ex: "Scholarship fund." },
+    { eng: "furniture", idn: "furnitur", ex: "New furniture." },
+    { eng: "future", idn: "masa depan", ex: "In the future." },
+    { eng: "gain", idn: "mendapatkan", ex: "Gain weight." },
+    { eng: "gallery", idn: "galeri", ex: "Art gallery." },
+    { eng: "gap", idn: "celah", ex: "A gap in the fence." },
+    { eng: "garage", idn: "garasi", ex: "Park in the garage." },
+    { eng: "gather", idn: "berkumpul", ex: "Gather around." },
+    { eng: "general", idn: "umum", ex: "General knowledge." },
+    { eng: "generate", idn: "menghasilkan", ex: "Generate electricity." },
+    { eng: "generation", idn: "generasi", ex: "New generation." },
+    { eng: "generous", idn: "dermawan", ex: "He is generous." },
+    { eng: "gentle", idn: "lembut", ex: "Be gentle." },
+    { eng: "genuine", idn: "asli", ex: "Genuine leather." },
+    { eng: "gesture", idn: "isyarat", ex: "Hand gesture." },
+    { eng: "ghost", idn: "hantu", ex: "Scary ghost." },
+    { eng: "giant", idn: "raksasa", ex: "Giant building." },
+    { eng: "glance", idn: "sekilas", ex: "At first glance." },
+    { eng: "global", idn: "global", ex: "Global warming." },
+    { eng: "glory", idn: "kejayaan", ex: "Glory of Rome." },
+    { eng: "goal", idn: "tujuan", ex: "Score a goal." },
+    { eng: "government", idn: "pemerintah", ex: "The government rules." },
+    { eng: "grab", idn: "mengambil/merebut", ex: "Grab a snack." },
+    { eng: "grade", idn: "nilai/tingkat", ex: "Good grade." },
+    { eng: "gradual", idn: "bertahap", ex: "Gradual change." },
+    { eng: "graduate", idn: "lulusan", ex: "College graduate." },
+    { eng: "grain", idn: "butir/biji", ex: "Grain of rice." },
+    { eng: "grand", idn: "megah", ex: "Grand hotel." },
+    { eng: "grant", idn: "hibah/mengabulkan", ex: "Research grant." },
+    { eng: "grateful", idn: "berterima kasih", ex: "I am grateful." },
+    { eng: "gravity", idn: "gravitasi", ex: "Earth gravity." },
+    { eng: "greed", idn: "keserakahan", ex: "Human greed." },
+    { eng: "grocery", idn: "toko kelontong", ex: "Grocery store." },
+    { eng: "ground", idn: "tanah", ex: "Sit on the ground." },
+    { eng: "growth", idn: "pertumbuhan", ex: "Economic growth." },
+    { eng: "guarantee", idn: "garansi", ex: "Money back guarantee." },
+    { eng: "guard", idn: "penjaga", ex: "Security guard." },
+    { eng: "guess", idn: "tebak", ex: "Guess who?" },
+    { eng: "guest", idn: "tamu", ex: "Welcome our guest." },
+    { eng: "guide", idn: "pemandu", ex: "Tour guide." },
+    { eng: "guilty", idn: "bersalah", ex: "Feel guilty." },
+    { eng: "habit", idn: "kebiasaan", ex: "Bad habit." },
+    { eng: "handle", idn: "menangani", ex: "Handle with care." },
+    { eng: "hang", idn: "menggantung", ex: "Hang the picture." },
+    { eng: "harbour", idn: "pelabuhan", ex: "Ship at the harbour." },
+    { eng: "hardly", idn: "hampir tidak", ex: "I hardly sleep." },
+    { eng: "harm", idn: "bahaya/menyakiti", ex: "No harm." },
+    { eng: "harvest", idn: "panen", ex: "Rice harvest." },
+    { eng: "health", idn: "kesehatan", ex: "Health care." },
+    { eng: "healthy", idn: "sehat", ex: "Healthy food." },
+    { eng: "height", idn: "tinggi", ex: "Body height." },
+    { eng: "hesitate", idn: "ragu-ragu", ex: "Don't hesitate." },
+    { eng: "hidden", idn: "tersembunyi", ex: "Hidden treasure." },
+    { eng: "hire", idn: "menyewa/mempekerjakan", ex: "Hire a car." },
+    { eng: "history", idn: "sejarah", ex: "World history." },
+    { eng: "honest", idn: "jujur", ex: "Be honest." },
+    { eng: "honour", idn: "kehormatan", ex: "Sense of honour." },
+    { eng: "hope", idn: "harapan", ex: "I hope so." },
+    { eng: "horrible", idn: "mengerikan", ex: "Horrible dream." },
+    { eng: "hospital", idn: "rumah sakit", ex: "Go to hospital." },
+    { eng: "host", idn: "tuan rumah", ex: "Talk show host." },
+    { eng: "huge", idn: "besar sekali", ex: "Huge elephant." },
+    { eng: "humble", idn: "rendah hati", ex: "Stay humble." },
+    { eng: "humour", idn: "humor", ex: "Sense of humour." },
+    { eng: "hunt", idn: "berburu", ex: "Hunt for food." },
+    { eng: "ideal", idn: "ideal", ex: "Ideal weight." },
+    { eng: "identify", idn: "mengidentifikasi", ex: "Identify the suspect." },
+    { eng: "ignore", idn: "mengabaikan", ex: "Ignore the noise." },
+    { eng: "illegal", idn: "ilegal", ex: "Illegal drugs." },
+    { eng: "illness", idn: "penyakit", ex: "Mental illness." },
+    { eng: "illustrate", idn: "mengilustrasikan", ex: "Illustrate the book." },
+    { eng: "image", idn: "gambar/citra", ex: "Public image." },
+    { eng: "imagination", idn: "imajinasi", ex: "Power of imagination." },
+    { eng: "imagine", idn: "membayangkan", ex: "Imagine that." },
+    { eng: "immediate", idn: "segera", ex: "Immediate response." },
+    { eng: "impact", idn: "dampak", ex: "Social impact." },
+    { eng: "impatient", idn: "tidak sabar", ex: "Don't be impatient." },
+    { eng: "implement", idn: "melaksanakan", ex: "Implement the law." },
+    { eng: "imply", idn: "menyiratkan", ex: "What do you imply?" },
+    { eng: "import", idn: "impor", ex: "Import sugar." },
+    { eng: "importance", idn: "kepentingan", ex: "Matter of importance." },
+    { eng: "impress", idn: "mengesankan", ex: "Impress your boss." },
+    { eng: "impression", idn: "kesan", ex: "First impression." },
+    { eng: "improve", idn: "meningkatkan", ex: "Improve English." },
+    { eng: "improvement", idn: "peningkatan", ex: "Big improvement." },
+    { eng: "incident", idn: "insiden", ex: "Road incident." },
+    { eng: "include", idn: "termasuk", ex: "Tax included." },
+    { eng: "income", idn: "pendapatan", ex: "Monthly income." },
+    { eng: "increase", idn: "meningkatkan", ex: "Increase price." },
+    { eng: "indeed", idn: "memang", ex: "Yes, indeed." },
+    { eng: "independent", idn: "mandiri", ex: "Independent woman." },
+    { eng: "indicate", idn: "menunjukkan", ex: "Signs indicate rain." },
+    { eng: "individual", idn: "individu", ex: "Each individual." },
+    { eng: "industry", idn: "industri", ex: "Music industry." },
+    { eng: "inevitable", idn: "tidak bisa dihindari", ex: "Inevitable death." },
+    { eng: "infection", idn: "infeksi", ex: "Skin infection." },
+    { eng: "influence", idn: "pengaruh", ex: "Social influence." },
+    { eng: "inform", idn: "menginformasikan", ex: "Inform the police." },
+    { eng: "information", idn: "informasi", ex: "Need information." },
+    { eng: "ingredient", idn: "bahan", ex: "Food ingredient." },
+    { eng: "initial", idn: "awal", ex: "Initial stage." },
+    { eng: "injury", idn: "cedera", ex: "Leg injury." },
+    { eng: "inner", idn: "bagian dalam", ex: "Inner peace." },
+    { eng: "innocent", idn: "tidak bersalah", ex: "Innocent child." },
+    { eng: "insect", idn: "serangga", ex: "Tiny insect." },
+    { eng: "inside", idn: "didalam", ex: "Go inside." },
+    { eng: "insist", idn: "bersikeras", ex: "I insist." },
+    { eng: "inspect", idn: "memeriksa", ex: "Inspect the house." },
+    { eng: "install", idn: "memasang", ex: "Install app." },
+    { eng: "instance", idn: "contoh", ex: "For instance." },
+    { eng: "instant", idn: "instan", ex: "Instant noodle." },
+    { eng: "instead", idn: "malah", ex: "Instead of water." },
+    { eng: "instruct", idn: "menginstruksikan", ex: "Instruct the staff." },
+    { eng: "instruction", idn: "instruksi", ex: "Read instruction." },
+    { eng: "instrument", idn: "instrumen", ex: "Musical instrument." },
+    { eng: "insurance", idn: "asuransi", ex: "Life insurance." },
+    { eng: "intellectual", idn: "intelektual", ex: "Intellectual property." },
+    { eng: "intelligence", idn: "kecerdasan", ex: "Artificial intelligence." },
+    { eng: "intend", idn: "berniat", ex: "I intend to go." },
+    { eng: "intent", idn: "niat", ex: "Criminal intent." },
+    { eng: "intention", idn: "niat", ex: "Good intention." },
+    { eng: "interest", idn: "bunga/minat", ex: "Bank interest." },
+    { eng: "interior", idn: "interior", ex: "Interior design." },
+    { eng: "internal", idn: "internal", ex: "Internal audit." },
+    { eng: "international", idn: "internasional", ex: "International airport." },
+    { eng: "interpret", idn: "menafsirkan", ex: "Interpret the dream." },
+    { eng: "interrupt", idn: "menyela", ex: "Don't interrupt." },
+    { eng: "interval", idn: "interval", ex: "Time interval." },
+    { eng: "interview", idn: "wawancara", ex: "Job interview." },
+    { eng: "introduce", idn: "memperkenalkan", ex: "Introduce yourself." },
+    { eng: "introduction", idn: "pengantar", ex: "Introduction book." },
+    { eng: "invent", idn: "menemukan/menciptakan", ex: "Invent new tool." },
+    { eng: "invention", idn: "penemuan", ex: "Thomas Edison invention." },
+    { eng: "invest", idn: "berinvestasi", ex: "Invest in gold." },
+    { eng: "investigate", idn: "menyelidiki", ex: "Investigate the case." },
+    { eng: "investment", idn: "investasi", ex: "Safe investment." },
+    { eng: "invitation", idn: "undangan", ex: "Party invitation." },
+    { eng: "invite", idn: "mengundang", ex: "Invite friends." },
+    { eng: "involve", idn: "melibatkan", ex: "Involve the family." },
+    { eng: "iron", idn: "besi/setrika", ex: "Iron bar." },
+    { eng: "island", idn: "pulau", ex: "Tropical island." },
+    { eng: "issue", idn: "isu/masalah", ex: "Social issue." },
+    { eng: "item", idn: "item/barang", ex: "Five items." },
+    { eng: "jacket", idn: "jaket", ex: "Wear jacket." },
+    { eng: "jail", idn: "penjara", ex: "Go to jail." },
+    { eng: "jam", idn: "selai/macet", ex: "Traffic jam." },
+    { eng: "jar", idn: "toples", ex: "Cookie jar." },
+    { eng: "jaw", idn: "rahang", ex: "Lower jaw." },
+    { eng: "jealous", idn: "cemburu", ex: "Don't be jealous." },
+    { eng: "jeans", idn: "jeans", ex: "Blue jeans." },
+    { eng: "jelly", idn: "jeli", ex: "Fruit jelly." },
+    { eng: "jet", idn: "jet", ex: "Private jet." },
+    { eng: "jewel", idn: "permata", ex: "Crown jewel." },
+    { eng: "job", idn: "pekerjaan", ex: "Good job." },
+    { eng: "join", idn: "bergabung", ex: "Join the club." },
+    { eng: "joint", idn: "sendi/bersama", ex: "Knee joint." },
+    { eng: "joke", idn: "lelucon", ex: "Funny joke." },
+    { eng: "journal", idn: "jurnal", ex: "Medical journal." },
+    { eng: "journey", idn: "perjalanan", ex: "Long journey." },
+    { eng: "joy", idn: "kegembiraan", ex: "Bundle of joy." },
+    { eng: "judge", idn: "hakim/menilai", ex: "Judge me." },
+    { eng: "judgment", idn: "penilaian", ex: "Good judgment." },
+    { eng: "juice", idn: "jus", ex: "Orange juice." },
+    { eng: "jump", idn: "melompat", ex: "Jump high." },
+    { eng: "junior", idn: "junior", ex: "Junior high." },
+    { eng: "jury", idn: "dewan juri", ex: "Jury trial." },
+    { eng: "just", idn: "adil/baru saja", ex: "Just arrived." },
+    { eng: "justice", idn: "keadilan", ex: "Social justice." },
+    { eng: "justify", idn: "membenarkan", ex: "Justify the action." },
+    { eng: "keen", idn: "tekun/tajam", ex: "Keen interest." },
+    { eng: "keep", idn: "menyimpan", ex: "Keep it safe." },
+    { eng: "kettle", idn: "ketel", ex: "Tea kettle." },
+    { eng: "key", idn: "kunci", ex: "Car key." },
+    { eng: "kick", idn: "menendang", ex: "Kick the ball." },
+    { eng: "kid", idn: "anak", ex: "Funny kid." },
+    { eng: "kidnap", idn: "menculik", ex: "Kidnap the boy." },
+    { eng: "kidney", idn: "ginjal", ex: "Left kidney." },
+    { eng: "kill", idn: "membunuh", ex: "Kill the fly." },
+    { eng: "kind", idn: "jenis/baik", ex: "What kind?" },
+    { eng: "kingdom", idn: "kerajaan", ex: "Kingdom of Saudi." },
+    { eng: "king", idn: "raja", ex: "Lion king." },
+    { eng: "kiss", idn: "mencium", ex: "Kiss me." },
+    { eng: "kitchen", idn: "dapur", ex: "In the kitchen." },
+    { eng: "knee", idn: "lutut", ex: "Knee pain." },
+    { eng: "knife", idn: "pisau", ex: "Sharp knife." },
+    { eng: "knock", idn: "mengetuk", ex: "Knock the door." },
+    { eng: "knot", idn: "simpul", ex: "Tie a knot." },
+    { eng: "know", idn: "tahu", ex: "I know." },
+    { eng: "knowledge", idn: "pengetahuan", ex: "General knowledge." },
+    { eng: "label", idn: "label", ex: "Price label." },
+    { eng: "laboratory", idn: "laboratorium", ex: "Science laboratory." },
+    { eng: "labour", idn: "tenaga kerja", ex: "Manual labour." },
+    { eng: "lack", idn: "kekurangan", ex: "Lack of sleep." },
+    { eng: "ladder", idn: "tangga", ex: "Climb the ladder." },
+    { eng: "lady", idn: "wanita", ex: "First lady." },
+    { eng: "lake", idn: "danau", ex: "Toba lake." },
+    { eng: "lamp", idn: "lampu", ex: "Desk lamp." },
+    { eng: "land", idn: "tanah/mendarat", ex: "Land the plane." },
+    { eng: "landscape", idn: "pemandangan", ex: "Beautiful landscape." },
+    { eng: "language", idn: "bahasa", ex: "English language." },
+    { eng: "lantern", idn: "lentera", ex: "Paper lantern." },
+    { eng: "lap", idn: "pangkuan/putaran", ex: "Sit on my lap." },
+    { eng: "large", idn: "besar", ex: "Large pizza." },
+    { eng: "laser", idn: "laser", ex: "Laser pointer." },
+    { eng: "last", idn: "terakhir", ex: "Last night." },
+    { eng: "late", idn: "terlambat", ex: "Too late." },
+    { eng: "lately", idn: "akhir-akhir ini", ex: "Lately I busy." },
+    { eng: "later", idn: "nanti", ex: "See you later." },
+    { eng: "latitude", idn: "garis lintang", ex: "North latitude." },
+    { eng: "laugh", idn: "tertawa", ex: "Laugh out loud." },
+    { eng: "launch", idn: "meluncurkan", ex: "Launch the rocket." },
+    { eng: "laundry", idn: "cucian", ex: "Do the laundry." },
+    { eng: "law", idn: "hukum", ex: "Break the law." },
+    { eng: "lawyer", idn: "pengacara", ex: "Need a lawyer." },
+    { eng: "lay", idn: "meletakkan", ex: "Lay the table." },
+    { eng: "layer", idn: "lapisan", ex: "Ozone layer." },
+    { eng: "lazy", idn: "malas", ex: "Lazy dog." },
+    { eng: "lead", idn: "memimpin", ex: "Lead the team." },
+    { eng: "leader", idn: "pemimpin", ex: "World leader." },
+    { eng: "leaf", idn: "daun", ex: "Green leaf." },
+    { eng: "league", idn: "liga", ex: "Premier league." },
+    { eng: "leak", idn: "bocor", ex: "Water leak." },
+    { eng: "lean", idn: "ramping/bersandar", ex: "Lean on me." },
+    { eng: "learn", idn: "belajar", ex: "Learn more." },
+    { eng: "least", idn: "sedikitnya", ex: "At least." },
+    { eng: "leather", idn: "kulit", ex: "Leather jacket." },
+    { eng: "leave", idn: "meninggalkan", ex: "Leave me alone." },
+    { eng: "lecture", idn: "kuliah", ex: "Attend lecture." },
+    { eng: "left", idn: "kiri/meninggalkan", ex: "Turn left." },
+    { eng: "leg", idn: "kaki", ex: "Broken leg." },
+    { eng: "legal", idn: "legal/hukum", ex: "Legal action." },
+    { eng: "legend", idn: "legenda", ex: "Urban legend." },
+    { eng: "leisure", idn: "waktu luang", ex: "Leisure time." },
+    { eng: "lemon", idn: "lemon", ex: "Sour lemon." },
+    { eng: "lend", idn: "meminjamkan", ex: "Lend me money." },
+    { eng: "length", idn: "panjang", ex: "Bridge length." },
+    { eng: "lens", idn: "lensa", ex: "Contact lens." },
+    { eng: "less", idn: "kurang", ex: "Less sugar." },
+    { eng: "lesson", idn: "pelajaran", ex: "English lesson." },
+    { eng: "let", idn: "biarkan", ex: "Let it go." },
+    { eng: "letter", idn: "surat/huruf", ex: "Capital letter." },
+    { eng: "level", idn: "level/tingkat", ex: "Level up." },
+    { eng: "liberal", idn: "liberal", ex: "Liberal arts." },
+    { eng: "liberty", idn: "kebebasan", ex: "Statue of Liberty." },
+    { eng: "library", idn: "perpustakaan", ex: "Public library." },
+    { eng: "license", idn: "lisensi/sim", ex: "Driver license." },
+    { eng: "lid", idn: "tutup", ex: "Eye lid." },
+    { eng: "lie", idn: "berbohong/berbaring", ex: "Lie to me." },
+    { eng: "life", idn: "hidup", ex: "My life." },
+    { eng: "lift", idn: "mengangkat/lift", ex: "Take the lift." },
+    { eng: "light", idn: "cahaya/ringan", ex: "Bright light." },
+    { eng: "lightning", idn: "petir", ex: "Thunder and lightning." },
+    { eng: "like", idn: "seperti/suka", ex: "I like you." },
+    { eng: "likely", idn: "mungkin", ex: "Most likely." },
+    { eng: "limit", idn: "batas", ex: "Speed limit." },
+    { eng: "limited", idn: "terbatas", ex: "Limited edition." },
+    { eng: "line", idn: "garis/baris", ex: "Wait in line." },
+    { eng: "link", idn: "tautan/hubungkan", ex: "Check the link." },
+    { eng: "lion", idn: "singa", ex: "Mountain lion." },
+    { eng: "lip", idn: "bibir", ex: "Upper lip." },
+    { eng: "liquid", idn: "cair", ex: "Liquid soap." },
+    { eng: "list", idn: "daftar", ex: "Shopping list." },
+    { eng: "listen", idn: "mendengar", ex: "Listen to music." },
+    { eng: "literal", idn: "literal", ex: "Literal meaning." },
+    { eng: "literary", idn: "literasi", ex: "Literary work." },
+    { eng: "literature", idn: "literatur", ex: "English literature." },
+    { eng: "little", idn: "kecil/sedikit", ex: "Little bit." },
+    { eng: "live", idn: "hidup/tinggal", ex: "Live concert." },
+    { eng: "liver", idn: "hati", ex: "Pig liver." },
+    { eng: "living", idn: "hidup", ex: "Living room." },
+    { eng: "load", idn: "muatan/memuat", ex: "Full load." },
+    { eng: "loan", idn: "pinjaman", ex: "Bank loan." },
+    { eng: "lobby", idn: "lobi", ex: "Hotel lobby." },
+    { eng: "local", idn: "lokal", ex: "Local news." },
+    { eng: "locate", idn: "menemukan", ex: "Locate the place." },
+    { eng: "location", idn: "lokasi", ex: "GPS location." },
+    { eng: "lock", idn: "mengunci", ex: "Lock the door." },
+    { eng: "logical", idn: "logis", ex: "Logical thinking." },
+    { eng: "lonely", idn: "kesepian", ex: "I feel lonely." },
+    { eng: "long", idn: "panjang", ex: "Long hair." },
+    { eng: "look", idn: "melihat", ex: "Look at me." },
+    { eng: "loop", idn: "putaran", ex: "Feedback loop." },
+    { eng: "loose", idn: "longgar", ex: "Loose shirt." },
+    { eng: "lord", idn: "tuan/tuhan", ex: "Oh my Lord." },
+    { eng: "lorry", idn: "truk", ex: "Driving a lorry." },
+    { eng: "lose", idn: "hilang/kalah", ex: "Lose weight." },
+    { eng: "loss", idn: "kerugian", ex: "Weight loss." },
+    { eng: "lost", idn: "hilang", ex: "Get lost." },
+    { eng: "lot", idn: "banyak", ex: "A lot of money." },
+    { eng: "loud", idn: "keras", ex: "Loud music." },
+    { eng: "lounge", idn: "ruang tunggu", ex: "Airport lounge." },
+    { eng: "love", idn: "cinta", ex: "I love you." },
+    { eng: "lovely", idn: "menyenangkan", ex: "Lovely day." },
+    { eng: "low", idn: "rendah", ex: "Low battery." },
+    { eng: "lower", idn: "menurunkan", ex: "Lower the volume." },
+    { eng: "loyal", idn: "setia", ex: "Loyal customer." },
+    { eng: "luck", idn: "keberuntungan", ex: "Good luck." },
+    { eng: "lucky", idn: "beruntung", ex: "Lucky day." },
+    { eng: "luggage", idn: "bagasi", ex: "Hand luggage." },
+    { eng: "lump", idn: "benjolan", ex: "Sugar lump." },
+    { eng: "lunch", idn: "makan siang", ex: "Eat lunch." },
+    { eng: "lung", idn: "paru-paru", ex: "Left lung." },
+    { eng: "luxury", idn: "mewah", ex: "Luxury car." },
+    { eng: "machine", idn: "mesin", ex: "Washing machine." },
+    { eng: "mad", idn: "gila/marah", ex: "Don't be mad." },
+    { eng: "magazine", idn: "majalah", ex: "Fashion magazine." },
+    { eng: "magic", idn: "sihir", ex: "Magic show." },
+    { eng: "magical", idn: "ajaib", ex: "Magical place." },
+    { eng: "magnet", idn: "magnet", ex: "Strong magnet." },
+    { eng: "magnitude", idn: "besarnya", ex: "Magnitude of earthquake." },
+    { eng: "maid", idn: "pembantu", ex: "House maid." },
+    { eng: "mail", idn: "surat", ex: "Check mail." },
+    { eng: "main", idn: "utama", ex: "Main street." },
+    { eng: "mainstream", idn: "arus utama", ex: "Mainstream media." },
+    { eng: "maintain", idn: "memelihara", ex: "Maintain health." },
+    { eng: "maintenance", idn: "pemeliharaan", ex: "Under maintenance." },
+    { eng: "major", idn: "utama/besar", ex: "Major city." },
+    { eng: "majority", idn: "mayoritas", ex: "In the majority." },
+    { eng: "make", idn: "membuat", ex: "Make a cake." },
+    { eng: "male", idn: "laki-laki", ex: "The cat is male." },
+    { eng: "mammal", idn: "mamalia", ex: "Whale is a mammal." },
+    { eng: "man", idn: "pria", ex: "Old man." },
+    { eng: "manage", idn: "mengelola", ex: "Manage time." },
+    { eng: "management", idn: "manajemen", ex: "Hotel management." },
+    { eng: "manager", idn: "manajer", ex: "Bank manager." },
+    { eng: "manner", idn: "cara/sikap", ex: "Table manner." },
+    { eng: "manual", idn: "manual", ex: "Read manual." },
+    { eng: "manufacture", idn: "manufaktur", ex: "Factory manufacture." },
+    { eng: "manufacturer", idn: "produsen", ex: "Car manufacturer." },
+    { eng: "many", idn: "banyak", ex: "Many people." },
+    { eng: "map", idn: "peta", ex: "World map." },
+    { eng: "margin", idn: "margin/pinggir", ex: "Page margin." },
+    { eng: "marine", idn: "laut/bahari", ex: "Marine life." },
+    { eng: "mark", idn: "tanda/nilai", ex: "Check mark." },
+    { eng: "market", idn: "pasar", ex: "Traditional market." },
+    { eng: "marketing", idn: "pemasaran", ex: "Marketing plan." },
+    { eng: "marriage", idn: "pernikahan", ex: "Long marriage." },
+    { eng: "marry", idn: "menikah", ex: "Marry me." },
+    { eng: "marvelous", idn: "menakjubkan", ex: "Marvelous view." },
+    { eng: "mass", idn: "massa/misa", ex: "Mass media." },
+    { eng: "massive", idn: "masif", ex: "Massive building." },
+    { eng: "master", idn: "tuan/ahli", ex: "Master of art." },
+    { eng: "match", idn: "cocok/pertandingan", ex: "Football match." },
+    { eng: "mate", idn: "teman", ex: "Class mate." },
+    { eng: "material", idn: "bahan", ex: "Building material." },
+    { eng: "mathematics", idn: "matematika", ex: "Learn mathematics." },
+    { eng: "matter", idn: "masalah", ex: "Does it matter?" },
+    { eng: "maximum", idn: "maksimum", ex: "Maximum speed." },
+    { eng: "maybe", idn: "mungkin", ex: "Maybe later." },
+    { eng: "mayor", idn: "walikota", ex: "City mayor." },
+    { eng: "meal", idn: "makanan", ex: "Healthy meal." },
+    { eng: "mean", idn: "berarti/kejam", ex: "Don't be mean." },
+    { eng: "meaning", idn: "arti", ex: "Deep meaning." },
+    { eng: "measure", idn: "ukuran/tindakan", ex: "Measure height." },
+    { eng: "measurement", idn: "pengukuran", ex: "Standard measurement." },
+    { eng: "meat", idn: "daging", ex: "Eat meat." },
+    { eng: "mechanical", idn: "mekanis", ex: "Mechanical engineer." },
+    { eng: "mechanism", idn: "mekanisme", ex: "Defense mechanism." },
+    { eng: "medal", idn: "medali", ex: "Gold medal." },
+    { eng: "media", idn: "media", ex: "Social media." },
+    { eng: "medical", idn: "medis", ex: "Medical school." },
+    { eng: "medicine", idn: "obat", ex: "Take medicine." },
+    { eng: "medium", idn: "medium/sedang", ex: "Size medium." },
+    { eng: "meet", idn: "bertemu", ex: "Nice to meet you." },
+    { eng: "meeting", idn: "pertemuan", ex: "Office meeting." },
+    { eng: "melody", idn: "melodi", ex: "Beautiful melody." },
+    { eng: "member", idn: "anggota", ex: "Family member." },
+    { eng: "membership", idn: "keanggotaan", ex: "GYM membership." },
+    { eng: "memory", idn: "ingatan", ex: "Good memory." },
+    { eng: "mental", idn: "mental", ex: "Mental health." },
+    { eng: "mention", idn: "menyebutkan", ex: "Don't mention it." },
+    { eng: "menu", idn: "menu", ex: "Food menu." },
+    { eng: "mercy", idn: "rahmat/belas kasihan", ex: "At your mercy." },
+    { eng: "merely", idn: "hanya", ex: "Merely a friend." },
+    { eng: "merit", idn: "jasa/patut", ex: "Merit scholarship." },
+    { eng: "message", idn: "pesan", ex: "WhatsApp message." },
+    { eng: "metal", idn: "logam", ex: "Heavy metal." },
+    { eng: "metaphor", idn: "metafora", ex: "Deep metaphor." },
+    { eng: "meter", idn: "meter", ex: "Ten meters." },
+    { eng: "method", idn: "metode", ex: "Scientific method." },
+    { eng: "microscope", idn: "mikroskop", ex: "Under microscope." },
+    { eng: "middle", idn: "tengah", ex: "Middle East." },
+    { eng: "might", idn: "mungkin/kekuatan", ex: "Might be rain." },
+    { eng: "military", idn: "militer", ex: "Military service." },
+    { eng: "milk", idn: "susu", ex: "Fresh milk." },
+    { eng: "mill", idn: "penggilingan", ex: "Wind mill." },
+    { eng: "million", idn: "juta", ex: "One million." },
+    { eng: "mind", idn: "pikiran", ex: "Open mind." },
+    { eng: "mine", idn: "milikku/tambang", ex: "Gold mine." },
+    { eng: "mineral", idn: "mineral", ex: "Mineral water." },
+    { eng: "minimum", idn: "minimum", ex: "Minimum wage." },
+    { eng: "minister", idn: "menteri", ex: "Prime minister." },
+    { eng: "minor", idn: "minor/kecil", ex: "Minor injury." },
+    { eng: "minority", idn: "minoritas", ex: "Ethnic minority." },
+    { eng: "minute", idn: "menit", ex: "Five minutes." },
+    { eng: "miracle", idn: "mukjizat", ex: "I need a miracle." },
+    { eng: "mirror", idn: "cermin", ex: "Look at mirror." },
+    { eng: "miserable", idn: "menderita", ex: "I feel miserable." },
+    { eng: "misery", idn: "penderitaan", ex: "Human misery." },
+    { eng: "miss", idn: "rindu/luput", ex: "I miss you." },
+    { eng: "mission", idn: "misi", ex: "Space mission." },
+    { eng: "mistake", idn: "kesalahan", ex: "Common mistake." },
+    { eng: "mix", idn: "campur", ex: "Mix the colors." },
+    { eng: "mixture", idn: "campuran", ex: "Chemical mixture." },
+    { eng: "mobile", idn: "mobile", ex: "Mobile phone." },
+    { eng: "mode", idn: "mode", ex: "Silent mode." },
+    { eng: "model", idn: "model", ex: "Fashion model." },
+    { eng: "moderate", idn: "moderat", ex: "Moderate climate." },
+    { eng: "modern", idn: "modern", ex: "Modern house." },
+    { eng: "modest", idn: "sederhana", ex: "Be modest." },
+    { eng: "modify", idn: "memodifikasi", ex: "Modify car." },
+    { eng: "module", idn: "modul", ex: "Study module." },
+    { eng: "moist", idn: "lembab", ex: "Moist cake." },
+    { eng: "molecule", idn: "molekul", ex: "Water molecule." },
+    { eng: "moment", idn: "momen", ex: "Wait a moment." },
+    { eng: "money", idn: "uang", ex: "Spend money." },
+    { eng: "monitor", idn: "monitor", ex: "Computer monitor." },
+    { eng: "monster", idn: "monster", ex: "Scary monster." },
+    { eng: "month", idn: "bulan", ex: "Next month." },
+    { eng: "monthly", idn: "bulanan", ex: "Monthly report." },
+    { eng: "monument", idn: "monumen", ex: "Historical monument." },
+    { eng: "mood", idn: "suasana hati", ex: "In a bad mood." },
+    { eng: "moon", idn: "bulan", ex: "Full moon." },
+    { eng: "moral", idn: "moral", ex: "Moral support." },
+    { eng: "more", idn: "lebih", ex: "One more." },
+    { eng: "morning", idn: "pagi", ex: "Early morning." },
+    { eng: "mortgage", idn: "hipotek", ex: "House mortgage." },
+    { eng: "mostly", idn: "kebanyakan", ex: "Mostly sunny." },
+    { eng: "mother", idn: "ibu", ex: "My mother." },
+    { eng: "motion", idn: "gerak", ex: "Slow motion." },
+    { eng: "motivate", idn: "memotivasi", ex: "Motivate students." },
+    { eng: "motivation", idn: "motivasi", ex: "High motivation." },
+    { eng: "motor", idn: "motor", ex: "Motor cycle." },
+    { eng: "mountain", idn: "gunung", ex: "Everest mountain." },
+    { eng: "mouse", idn: "tikus", ex: "Computer mouse." },
+    { eng: "mouth", idn: "mulut", ex: "Shut your mouth." },
+    { eng: "move", idn: "bergerak", ex: "Move on." },
+    { eng: "movement", idn: "gerakan", ex: "Political movement." },
+    { eng: "movie", idn: "film", ex: "Action movie." },
+    { eng: "much", idn: "banyak", ex: "Much water." },
+    { eng: "mud", idn: "lumpur", ex: "Play in the mud." },
+    { eng: "multiple", idn: "ganda/banyak", ex: "Multiple choice." },
+    { eng: "multiply", idn: "mengalikan", ex: "Five multiply two." },
+    { eng: "murder", idn: "pembunuhan", ex: "Murder case." },
+    { eng: "muscle", idn: "otot", ex: "Strong muscle." },
+    { eng: "museum", idn: "museum", ex: "Visit museum." },
+    { eng: "music", idn: "musik", ex: "Rock music." },
+    { eng: "musical", idn: "musikal", ex: "Musical drama." },
+    { eng: "musician", idn: "musisi", ex: "Famous musician." },
+    { eng: "mutual", idn: "saling", ex: "Mutual friend." },
+    { eng: "mystery", idn: "misteri", ex: "Murder mystery." },
+    { eng: "myth", idn: "mitos", ex: "Greek myth." },
+    { eng: "nail", idn: "paku/kuku", ex: "Finger nail." },
+    { eng: "naked", idn: "telanjang", ex: "Naked truth." },
+    { eng: "name", idn: "nama", ex: "Call my name." },
+    { eng: "narrative", idn: "naratif", ex: "Personal narrative." },
+    { eng: "narrow", idn: "sempit", ex: "Narrow road." },
+    { eng: "nation", idn: "bangsa", ex: "One nation." },
+    { eng: "national", idn: "nasional", ex: "National day." },
+    { eng: "native", idn: "pribumi/asli", ex: "Native speaker." },
+    { eng: "natural", idn: "alami", ex: "Natural beauty." },
+    { eng: "nature", idn: "alam", ex: "Mother nature." },
+    { eng: "navy", idn: "angkatan laut", ex: "Navy seal." },
+    { eng: "near", idn: "dekat", ex: "Near me." },
+    { eng: "nearby", idn: "disekitar", ex: "Nearby park." },
+    { eng: "nearly", idn: "hampir", ex: "Nearly finished." },
+    { eng: "neat", idn: "rapi", ex: "Neat hair." },
+    { eng: "necessary", idn: "perlu", ex: "If necessary." },
+    { eng: "neck", idn: "leher", ex: "Long neck." },
+    { eng: "need", idn: "perlu", ex: "I need you." },
+    { eng: "needle", idn: "jarum", ex: "Sewing needle." },
+    { eng: "negative", idn: "negatif", ex: "Negative energy." },
+    { eng: "neglect", idn: "mengabaikan", ex: "Neglect duties." },
+    { eng: "negotiate", idn: "bernegosiasi", ex: "Negotiate salary." },
+    { eng: "negotiation", idn: "negosiasi", ex: "Under negotiation." },
+    { eng: "neighbour", idn: "tetangga", ex: "New neighbour." },
+    { eng: "neither", idn: "tidak keduanya", ex: "Neither of them." },
+    { eng: "nervous", idn: "gugup", ex: "Feel nervous." },
+    { eng: "nest", idn: "sarang", ex: "Bird nest." },
+    { eng: "net", idn: "jaring/netto", ex: "Fishing net." },
+    { eng: "network", idn: "jaringan", ex: "Computer network." },
+    { eng: "neutral", idn: "netral", ex: "Neutral gear." },
+    { eng: "never", idn: "tidak pernah", ex: "Never say never." },
+    { eng: "nevertheless", idn: "namun", ex: "Nevertheless, I go." },
+    { eng: "new", idn: "baru", ex: "New car." },
+    { eng: "newly", idn: "baru saja", ex: "Newly wed." },
+    { eng: "news", idn: "berita", ex: "Breaking news." },
+    { eng: "newspaper", idn: "koran", ex: "Daily newspaper." },
+    { eng: "next", idn: "berikutnya", ex: "Next week." },
+    { eng: "nice", idn: "bagus/baik", ex: "Nice try." },
+    { eng: "night", idn: "malam", ex: "Good night." },
+    { eng: "nightmare", idn: "mimpi buruk", ex: "I had a nightmare." },
+    { eng: "nine", idn: "sembilan", ex: "Nine o'clock." },
+    { eng: "noble", idn: "mulia", ex: "Noble man." },
+    { eng: "nobody", idn: "tidak ada orang", ex: "Nobody knows." },
+    { eng: "noise", idn: "kebisingan", ex: "Loud noise." },
+    { eng: "noisy", idn: "berisik", ex: "Noisy children." },
+    { eng: "nominate", idn: "mencalonkan", ex: "Nominate the leader." },
+    { eng: "none", idn: "tidak ada", ex: "None of us." },
+    { eng: "nonetheless", idn: "meskipun demikian", ex: "Nonetheless, wait." },
+    { eng: "nonsense", idn: "omong kosong", ex: "What a nonsense." },
+    { eng: "noon", idn: "siang", ex: "Twelve noon." },
+    { eng: "nor", idn: "maupun tidak", ex: "Neither red nor blue." },
+    { eng: "normal", idn: "normal", ex: "Normal day." },
+    { eng: "normally", idn: "biasanya", ex: "Normally I go." },
+    { eng: "north", idn: "utara", ex: "North Pole." },
+    { eng: "nose", idn: "hidung", ex: "Long nose." },
+    { eng: "not", idn: "tidak", ex: "I'm not ready." },
+    { eng: "note", idn: "catatan", ex: "Sticky note." },
+    { eng: "notebook", idn: "buku catatan", ex: "Spiral notebook." },
+    { eng: "nothing", idn: "tidak ada apa-apa", ex: "Nothing to lose." },
+    { eng: "notice", idn: "pemberitahuan", ex: "Public notice." },
+    { eng: "notion", idn: "gagasan", ex: "Simple notion." },
+    { eng: "noun", idn: "kata benda", ex: "Common noun." },
+    { eng: "novel", idn: "novel", ex: "New novel." },
+    { eng: "now", idn: "sekarang", ex: "Do it now." },
+    { eng: "nowhere", idn: "tidak di mana pun", ex: "Nowhere to go." },
+    { eng: "nuclear", idn: "nuklir", ex: "Nuclear energy." },
+    { eng: "nuisance", idn: "gangguan", ex: "What a nuisance." },
+    { eng: "number", idn: "nomor", ex: "Lucky number." },
+    { eng: "numerous", idn: "banyak sekali", ex: "Numerous books." },
+    { eng: "nurse", idn: "perawat", ex: "Hospital nurse." },
+    { eng: "nut", idn: "kacang", ex: "Cashew nut." },
+    { eng: "nutrition", idn: "nutrisi", ex: "Good nutrition." },
+    { eng: "object", idn: "objek", ex: "Identify object." },
+    { eng: "objection", idn: "keberatan", ex: "I have no objection." },
+    { eng: "objective", idn: "tujuan/objektif", ex: "Main objective." },
+    { eng: "obligation", idn: "kewajiban", ex: "Legal obligation." },
+    { eng: "observation", idn: "observasi", ex: "Keep under observation." },
+    { eng: "observe", idn: "mengamati", ex: "Observe the sky." },
+    { eng: "obstacle", idn: "hambatan", ex: "Overcome obstacle." },
+    { eng: "obtain", idn: "mendapatkan", ex: "Obtain permission." },
+    { eng: "obvious", idn: "jelas", ex: "It's obvious." },
+    { eng: "occasion", idn: "kesempatan/acara", ex: "Special occasion." },
+    { eng: "occasional", idn: "sesekali", ex: "Occasional rain." },
+    { eng: "occupation", idn: "pekerjaan", ex: "What is your occupation?" },
+    { eng: "occupy", idn: "menempati", ex: "Occupy the room." },
+    { eng: "occur", idn: "terjadi", ex: "Accidents occur." },
+    { eng: "ocean", idn: "samudra", ex: "Blue ocean." },
+    { eng: "o'clock", idn: "pukul", ex: "Eight o'clock." },
+    { eng: "odd", idn: "aneh/ganjil", ex: "Odd number." },
+    { eng: "offence", idn: "pelanggaran", ex: "Minor offence." },
+    { eng: "offend", idn: "menyinggung", ex: "Don't offend him." },
+    { eng: "offensive", idn: "ofensif/menghina", ex: "Offensive language." },
+    { eng: "offer", idn: "tawaran", ex: "Special offer." },
+    { eng: "office", idn: "kantor", ex: "Post office." },
+    { eng: "officer", idn: "petugas/perwira", ex: "Police officer." },
+    { eng: "official", idn: "resmi", ex: "Official website." },
+    { eng: "often", idn: "sering", ex: "Often I go." },
+    { eng: "oil", idn: "minyak", ex: "Cooking oil." },
+    { eng: "old", idn: "tua", ex: "Old man." },
+    { eng: "omit", idn: "menghilangkan", ex: "Omit the details." },
+    { eng: "once", idn: "sekali", ex: "Once upon a time." },
+    { eng: "one", idn: "satu", ex: "Number one." },
+    { eng: "ongoing", idn: "sedang berlangsung", ex: "Ongoing project." },
+    { eng: "online", idn: "online", ex: "Online shop." },
+    { eng: "only", idn: "hanya", ex: "Only you." },
+    { eng: "onto", idn: "keatas", ex: "Onto the roof." },
+    { eng: "open", idn: "buka", ex: "Open door." },
+    { eng: "opening", idn: "pembukaan", ex: "Grand opening." },
+    { eng: "operate", idn: "mengoperasikan", ex: "Operate machine." },
+    { eng: "operation", idn: "operasi", ex: "Army operation." },
+    { eng: "opinion", idn: "pendapat", ex: "In my opinion." },
+    { eng: "opponent", idn: "lawan", ex: "Beat the opponent." },
+    { eng: "opportunity", idn: "kesempatan", ex: "Job opportunity." },
+    { eng: "oppose", idn: "menentang", ex: "Oppose the law." },
+    { eng: "opposite", idn: "berlawanan", ex: "Opposite side." },
+    { eng: "opposition", idn: "oposisi", ex: "Political opposition." },
+    { eng: "option", idn: "pilihan", ex: "Menu option." },
+    { eng: "orange", idn: "jeruk/oranye", ex: "Orange juice." },
+    { eng: "orbit", idn: "orbit", ex: "Earth orbit." },
+    { eng: "order", idn: "pesanan/perintah", ex: "Order food." },
+    { eng: "ordinary", idn: "biasa", ex: "Ordinary people." },
+    { eng: "organ", idn: "organ", ex: "Body organ." },
+    { eng: "organic", idn: "organik", ex: "Organic food." },
+    { eng: "organisation", idn: "organisasi", ex: "World organisation." },
+    { eng: "organise", idn: "mengatur", ex: "Organise a trip." },
+    { eng: "origin", idn: "asal", ex: "Point of origin." },
+    { eng: "original", idn: "asli", ex: "Original document." },
+    { eng: "other", idn: "lain", ex: "Other people." },
+    { eng: "otherwise", idn: "sebaliknya", ex: "Hurry up, otherwise late." },
+    { eng: "ought", idn: "seharusnya", ex: "You ought to go." },
+    { eng: "ounce", idn: "ons", ex: "One ounce." },
+    { eng: "our", idn: "kita punya", ex: "Our car." },
+    { eng: "out", idn: "keluar", ex: "Go out." },
+    { eng: "outcome", idn: "hasil", ex: "Final outcome." },
+    { eng: "outdoor", idn: "luar ruangan", ex: "Outdoor activity." },
+    { eng: "outer", idn: "luar", ex: "Outer space." },
+    { eng: "outline", idn: "garis besar", ex: "Essay outline." },
+    { eng: "output", idn: "output/hasil", ex: "Product output." },
+    { eng: "outside", idn: "diluar", ex: "Play outside." },
+    { eng: "outstanding", idn: "luar biasa", ex: "Outstanding performance." },
+    { eng: "oven", idn: "oven", ex: "Pizza oven." },
+    { eng: "over", idn: "diatas/lebih", ex: "Over the moon." },
+    { eng: "overall", idn: "secara keseluruhan", ex: "Overall good." },
+    { eng: "overcome", idn: "mengatasi", ex: "Overcome fear." },
+    { eng: "overlook", idn: "mengabaikan", ex: "Don't overlook details." },
+    { eng: "overseas", idn: "luar negeri", ex: "Study overseas." },
+    { eng: "owe", idn: "berhutang", ex: "I owe you." },
+    { eng: "own", idn: "milik sendiri", ex: "My own car." },
+    { eng: "owner", idn: "pemilik", ex: "Shop owner." },
+    { eng: "oxide", idn: "oksida", ex: "Iron oxide." },
+    { eng: "oxygen", idn: "oksigen", ex: "Need oxygen." }
+];
+
+    // --- LOGIC ---
+    const mpState = { enabled: false, connected: false, isHost: false, roomCode: null, role: 1, socket: null };
+    let rngSeed = 123456789;
+    function setSeed(seed) { rngSeed = (seed >>> 0) || 1; }
+    function seededRandom() { rngSeed = (rngSeed * 1664525 + 1013904223) >>> 0; return rngSeed / 4294967296; }
+    function gameRandom() { return (mpState.enabled && mpState.connected) ? seededRandom() : Math.random(); }
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(gameRandom() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    let gameData = [];
+    let current = 0;
+    function resetGameData() { gameData = shuffle([...fullVocab]); current = 0; }
+    resetGameData();
+    
+    // --- GAME LOGIC ---
+    let currentBattle = {}, currentDuel = {}, currentSniper = {}, currentTriple = {};
+    let p1Score = 0, p2Score = 0, battleActive = false, duelActive = false, sniperActive = false, tripleActive = false;
+    let battleTargetScore = 10;
+    let duelTargetScore = 10;
+    let sniperTargetScore = 10;
+    let tripleTargetScore = 10;
+    let battleOver = false;
+    let d1Score = 0, d2Score = 0;
+    let s1Score = 0, s2Score = 0;
+    let t1Score = 0, t2Score = 0;
+    let sniperInterval;
+
+    function startGame() {
+        const intro = document.getElementById('intro-screen');
+        const main = document.getElementById('main-app');
+        const nameInput = document.getElementById('player-name');
+        const displayName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Player';
+        const displayNode = document.getElementById('display-user-name');
+        if (displayNode) displayNode.innerText = `Welcome, ${displayName}`;
+        if (mpState.socket && mpState.connected && mpState.roomCode) {
+            mpState.socket.emit('updateName', { roomCode: mpState.roomCode, name: displayName });
+        }
+        
+        setTimeout(() => {
+            intro.style.opacity = '0';
+            setTimeout(() => { intro.style.display = 'none'; main.style.display = 'flex'; }, 500);
+        }, 100);
+
+        const bgMusic = document.getElementById('bg-music');
+        try {
+            bgMusic.play().then(() => { document.getElementById('music-toggle').classList.add('playing'); })
+            .catch(e => console.log("Music blocked by browser."));
+        } catch(e) {}
+
+        // Default to Battle Mode
+        openTab(null, 'battle-tab');
+    }
+
+    // --- TAB SYSTEM ---
+    function openTab(evt, tabName) {
+        // Stop any active games
+        battleActive = false;
+        duelActive = false;
+        sniperActive = false;
+        tripleActive = false;
+        clearInterval(sniperInterval);
+
+        const contents = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < contents.length; i++) contents[i].style.display = "none";
+        const buttons = document.getElementsByClassName("tab-btn");
+        for (let i = 0; i < buttons.length; i++) buttons[i].className = buttons[i].className.replace(" active", "");
+        
+        const target = document.getElementById(tabName);
+        if(target) target.style.display = "block";
+        
+        if (evt) evt.currentTarget.className += " active";
+        else {
+            for (let i = 0; i < buttons.length; i++) {
+                if (buttons[i].getAttribute('onclick') && buttons[i].getAttribute('onclick').includes(tabName)) {
+                    buttons[i].className += " active";
+                }
+            }
+        }
+    }
+
+    // --- SETTINGS ---
+    const bgMusic = document.getElementById('bg-music'); bgMusic.volume = 0.3;
+    function toggleMusic() { if (bgMusic.paused) { bgMusic.play(); document.getElementById('music-toggle').classList.add('playing'); } else { bgMusic.pause(); document.getElementById('music-toggle').classList.remove('playing'); } }
+    function adjustVolume() { bgMusic.volume = document.getElementById('vol-control').value; sfxCorrect.volume = bgMusic.volume; sfxWrong.volume = bgMusic.volume; }
+    function speak(text) { if ('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 1; window.speechSynthesis.speak(u); } }
+    function changeTheme(theme) { const root = document.documentElement; if (theme === 'classic') { root.style.setProperty('--bg', '#0f172a'); root.style.setProperty('--card', '#1e293b'); root.style.setProperty('--sidebar', '#111827'); root.style.setProperty('--primary', '#38bdf8'); root.style.setProperty('--text', '#f8fafc'); root.style.setProperty('--muted', '#94a3b8'); } else if (theme === 'cyberpunk') { root.style.setProperty('--bg', '#120024'); root.style.setProperty('--card', '#2a0a3b'); root.style.setProperty('--sidebar', '#1a0526'); root.style.setProperty('--primary', '#ff0099'); root.style.setProperty('--text', '#ffffff'); root.style.setProperty('--muted', '#d4a3e8'); } else if (theme === 'matrix') { root.style.setProperty('--bg', '#000000'); root.style.setProperty('--card', '#0d1a0d'); root.style.setProperty('--sidebar', '#001100'); root.style.setProperty('--primary', '#00ff41'); root.style.setProperty('--text', '#e0ffe0'); root.style.setProperty('--muted', '#4d804d'); } else if (theme === 'royal') { root.style.setProperty('--bg', '#1a0b2e'); root.style.setProperty('--card', '#2d1b4e'); root.style.setProperty('--sidebar', '#130821'); root.style.setProperty('--primary', '#ffd700'); root.style.setProperty('--text', '#fcfcfc'); root.style.setProperty('--muted', '#a090b0'); } }
+
+    function runCountdown(targetId, onDone) {
+        const el = document.getElementById(targetId);
+        if (!el) { onDone(); return; }
+        let count = 3;
+        el.style.color = "var(--warning)";
+        el.innerText = count;
+        const timer = setInterval(() => {
+            count -= 1;
+            if (count <= 0) {
+                clearInterval(timer);
+                el.innerText = "GO!";
+                el.style.color = "var(--text)";
+                setTimeout(onDone, 200);
+            } else {
+                el.innerText = count;
+            }
+        }, 700);
+    }
+
+    // --- BATTLE LOGIC (1 vs 1 Local) ---
+    function resetBattleGame() {
+        p1Score = 0; p2Score = 0;
+        battleActive = false;
+        battleOver = false;
+        document.getElementById('p1-score').innerText = '0';
+        document.getElementById('p2-score').innerText = '0';
+        const inputVal = document.getElementById('battle-target-score').value;
+        battleTargetScore = parseInt(inputVal) || 10;
+        document.getElementById('battle-msg').innerText = "Target: " + battleTargetScore;
+        document.getElementById('battle-msg').style.color = "var(--primary)";
+        startBattleRound();
+    }
+    function startBattleRound() {
+        if(battleOver) return;
+        battleActive = false;
+        runCountdown('battle-msg', () => {
+            battleActive = true;
+            const idx = Math.floor(gameRandom() * gameData.length);
+            const correctItem = gameData[idx];
+            const isCorrect = gameRandom() < 0.5;
+            currentBattle = { answer: isCorrect, correctEng: correctItem.eng };
+            let displayDef = "";
+            if (isCorrect) {
+                displayDef = correctItem.idn;
+            } else {
+                let wrongItem = gameData[Math.floor(gameRandom() * gameData.length)];
+                while (wrongItem.eng === correctItem.eng) wrongItem = gameData[Math.floor(gameRandom() * gameData.length)];
+                displayDef = wrongItem.idn;
+            }
+            document.getElementById('b-word').innerText = correctItem.eng;
+            document.getElementById('b-def').innerText = displayDef;
+            document.getElementById('battle-msg').innerText = "GO!";
+            document.getElementById('battle-msg').style.color = "var(--text)";
+        });
+    }
+    function resolveBattle(player, choice) {
+        if (!battleActive || battleOver) return;
+        battleActive = false;
+        const isCorrect = (choice === currentBattle.answer);
+        const msg = document.getElementById('battle-msg');
+        if (isCorrect) {
+            playCorrect(); msg.innerText = `Player ${player} Wins!`; msg.style.color = "var(--success)";
+            if (player === 1) { p1Score++; document.getElementById('p1-score').innerText = p1Score; }
+            else { p2Score++; document.getElementById('p2-score').innerText = p2Score; }
+            speak("Correct");
+        } else {
+            playWrong(); const winner = player === 1 ? 2 : 1; msg.innerText = `Player ${player} Wrong! P${winner} gets point!`; msg.style.color = "var(--danger)";
+            if (winner === 1) { p1Score++; document.getElementById('p1-score').innerText = p1Score; }
+            else { p2Score++; document.getElementById('p2-score').innerText = p2Score; }
+            speak("Wrong");
+        }
+        if (p1Score >= battleTargetScore || p2Score >= battleTargetScore) {
+            battleOver = true; msg.innerText = p1Score >= battleTargetScore ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
+            msg.style.color = "var(--primary)"; speak("Game Over");
+        } else { setTimeout(startBattleRound, 2000); }
+    }
+
+    // --- DUEL CHOICE LOGIC (Game 2) ---
+    function resetDuelGame() {
+        d1Score = 0; d2Score = 0;
+        document.getElementById('d1-score').innerText = "0";
+        document.getElementById('d2-score').innerText = "0";
+        
+        const inputVal = document.getElementById('duel-target-score').value;
+        duelTargetScore = parseInt(inputVal) || 10;
+        
+        document.getElementById('duel-msg').innerText = "Target: " + duelTargetScore;
+        document.getElementById('duel-msg').style.color = "var(--primary)";
+        
+        startDuelGame();
+    }
+
+    function startDuelGame() {
+        duelActive = true;
+        nextDuelRound();
+    }
+    
+    function nextDuelRound() {
+        if(!duelActive) return;
+        duelActive = false;
+        document.getElementById('duel-opt-1').classList.remove('correct');
+        document.getElementById('duel-opt-2').classList.remove('correct');
+        runCountdown('duel-msg', () => {
+            duelActive = true;
+            document.getElementById('duel-msg').innerText = "Pick Correct!";
+            const idx = Math.floor(gameRandom() * gameData.length);
+            const correctItem = gameData[idx];
+            let distractor = gameData[Math.floor(gameRandom() * gameData.length)];
+            while(distractor.eng === correctItem.eng) { distractor = gameData[Math.floor(gameRandom() * gameData.length)]; }
+            const correctPos = gameRandom() < 0.5 ? 1 : 2;
+            currentDuel = { correctPos: correctPos };
+            document.getElementById('duel-def').innerText = correctItem.idn;
+            if(correctPos === 1) {
+                document.getElementById('duel-opt-1').innerText = correctItem.eng;
+                document.getElementById('duel-opt-2').innerText = distractor.eng;
+            } else {
+                document.getElementById('duel-opt-1').innerText = distractor.eng;
+                document.getElementById('duel-opt-2').innerText = correctItem.eng;
+            }
+        });
+    }
+    
+    function resolveDuel(player, choicePos) {
+        if(!duelActive) return;
+        
+        // Correct Choice
+        if(choicePos === currentDuel.correctPos) {
+            playCorrect();
+            document.getElementById('duel-msg').innerText = `Player ${player} Point!`;
+            document.getElementById('duel-msg').style.color = "var(--success)";
+            if(currentDuel.correctPos === 1) document.getElementById('duel-opt-1').classList.add('correct');
+            else document.getElementById('duel-opt-2').classList.add('correct');
+            
+            if(player === 1) { d1Score++; document.getElementById('d1-score').innerText = d1Score; }
+            else { d2Score++; document.getElementById('d2-score').innerText = d2Score; }
+        } else {
+            // Wrong Choice -> Point to Opponent
+            playWrong();
+            const opponent = player === 1 ? 2 : 1;
+            document.getElementById('duel-msg').innerText = `P${player} Wrong! P${opponent} Gets Point!`;
+            document.getElementById('duel-msg').style.color = "var(--danger)";
+            
+            if(opponent === 1) { d1Score++; document.getElementById('d1-score').innerText = d1Score; }
+            else { d2Score++; document.getElementById('d2-score').innerText = d2Score; }
+        }
+        
+        duelActive = false; 
+        
+        // Check Win
+        if (d1Score >= duelTargetScore || d2Score >= duelTargetScore) {
+            const winner = d1Score >= duelTargetScore ? 1 : 2;
+            document.getElementById('duel-msg').innerText = `PLAYER ${winner} WINS MATCH!`;
+            speak("Game Over");
+        } else {
+            setTimeout(() => { duelActive = true; nextDuelRound(); }, 1500);
+        }
+    }
+
+    // --- SNIPER LOGIC (Game 3) ---
+    function resetSniperGame() {
+        s1Score = 0; s2Score = 0;
+        document.getElementById('s1-score').innerText = "0";
+        document.getElementById('s2-score').innerText = "0";
+        const inputVal = document.getElementById('sniper-target-score').value;
+        sniperTargetScore = parseInt(inputVal) || 10;
+        document.getElementById('sniper-msg').innerText = "Target: " + sniperTargetScore;
+        document.getElementById('sniper-msg').style.color = "var(--primary)";
+        sniperActive = true;
+        nextSniperRound();
+    }
+
+    function nextSniperRound() {
+        if(!sniperActive) return;
+        sniperActive = false;
+        clearInterval(sniperInterval);
+        runCountdown('sniper-msg', () => {
+            sniperActive = true;
+            document.getElementById('sniper-msg').innerText = "Wait...";
+            const idx = Math.floor(gameRandom() * gameData.length);
+            const target = gameData[idx];
+            currentSniper = { target: target, currentDef: null };
+            document.getElementById('sniper-target').innerText = target.eng;
+            let cycleCount = 0;
+            sniperInterval = setInterval(() => {
+                cycleCount++;
+                if(gameRandom() < 0.2 || cycleCount > 8) {
+                    currentSniper.currentDef = target;
+                    document.getElementById('sniper-text').innerText = target.idn;
+                    document.getElementById('sniper-text').style.color = "var(--success)";
+                } else {
+                    let decoy = gameData[Math.floor(gameRandom() * gameData.length)];
+                    currentSniper.currentDef = decoy;
+                    document.getElementById('sniper-text').innerText = decoy.idn;
+                    document.getElementById('sniper-text').style.color = "var(--text)";
+                }
+            }, 800); 
+        });
+    }
+    
+    function resolveSniper(player) {
+        if(!sniperActive) return;
+        const isCorrect = (currentSniper.currentDef.eng === currentSniper.target.eng);
+        if (isCorrect) {
+            playCorrect();
+            document.getElementById('sniper-msg').innerText = `Player ${player} Sniped It!`;
+            document.getElementById('sniper-msg').style.color = "var(--success)";
+            if(player === 1) { s1Score++; document.getElementById('s1-score').innerText = s1Score; }
+            else { s2Score++; document.getElementById('s2-score').innerText = s2Score; }
+        } else {
+            playWrong();
+            const winner = player === 1 ? 2 : 1;
+            document.getElementById('sniper-msg').innerText = `P${player} Missed! P${winner} Point!`;
+            document.getElementById('sniper-msg').style.color = "var(--danger)";
+            if(winner === 1) { s1Score++; document.getElementById('s1-score').innerText = s1Score; }
+            else { s2Score++; document.getElementById('s2-score').innerText = s2Score; }
+        }
+        clearInterval(sniperInterval);
+        if(s1Score >= sniperTargetScore || s2Score >= sniperTargetScore) {
+            const winner = s1Score >= sniperTargetScore ? 1 : 2;
+            document.getElementById('sniper-msg').innerText = `PLAYER ${winner} WINS!`;
+            document.getElementById('sniper-msg').style.color = "var(--primary)";
+            speak("Game Over");
+            sniperActive = false;
+        } else {
+            sniperActive = false;
+            setTimeout(() => { sniperActive = true; nextSniperRound(); }, 2000);
+        }
+    }
+
+    // --- TRIPLE THREAT LOGIC (Game 4) ---
+    function resetTripleGame() {
+        t1Score = 0; t2Score = 0;
+        document.getElementById('t1-score').innerText = "0";
+        document.getElementById('t2-score').innerText = "0";
+        const inputVal = document.getElementById('triple-target-score').value;
+        tripleTargetScore = parseInt(inputVal) || 10;
+        document.getElementById('triple-msg').innerText = "Target: " + tripleTargetScore;
+        tripleActive = true;
+        nextTripleRound();
+    }
+
+    function nextTripleRound() {
+        if(!tripleActive) return;
+        tripleActive = false;
+        // Clean UI
+        for(let i=1; i<=3; i++) document.getElementById(`triple-opt-${i}`).classList.remove('correct');
+        runCountdown('triple-msg', () => {
+            tripleActive = true;
+            document.getElementById('triple-msg').innerText = "Select Definition!";
+            // Setup Round
+            const idx = Math.floor(gameRandom() * gameData.length);
+            const correctItem = gameData[idx];
+            document.getElementById('triple-word').innerText = correctItem.eng;
+            // Distractors
+            let opts = [correctItem];
+            while(opts.length < 3) {
+                let d = gameData[Math.floor(gameRandom() * gameData.length)];
+                if(!opts.find(x => x.eng === d.eng)) opts.push(d);
+            }
+            opts = shuffle(opts);
+            // Render
+            currentTriple = { correctIndex: opts.indexOf(correctItem) + 1 }; // 1, 2, or 3
+            document.getElementById('t-text-1').innerText = opts[0].idn;
+            document.getElementById('t-text-2').innerText = opts[1].idn;
+            document.getElementById('t-text-3').innerText = opts[2].idn;
+        });
+    }
+
+    function resolveTriple(player, choiceIdx) {
+        if(!tripleActive) return;
+        
+        if (choiceIdx === currentTriple.correctIndex) {
+            playCorrect();
+            document.getElementById(`triple-opt-${choiceIdx}`).classList.add('correct');
+            document.getElementById('triple-msg').innerText = `Player ${player} Correct!`;
+            document.getElementById('triple-msg').style.color = "var(--success)";
+            
+            if(player === 1) { t1Score++; document.getElementById('t1-score').innerText = t1Score; }
+            else { t2Score++; document.getElementById('t2-score').innerText = t2Score; }
+            
+            tripleActive = false;
+            // Check Win
+            if (t1Score >= tripleTargetScore || t2Score >= tripleTargetScore) {
+                const winner = t1Score >= tripleTargetScore ? 1 : 2;
+                document.getElementById('triple-msg').innerText = `PLAYER ${winner} WINS MATCH!`;
+                speak("Game Over");
+            } else {
+                setTimeout(() => { tripleActive = true; nextTripleRound(); }, 1500);
+            }
+        } else {
+            playWrong();
+            // Wrong answer gives point to opponent
+            const opponent = player === 1 ? 2 : 1;
+            document.getElementById('triple-msg').innerText = `P${player} Wrong! Point P${opponent}`;
+            document.getElementById('triple-msg').style.color = "var(--danger)";
+            
+            if(opponent === 1) { t1Score++; document.getElementById('t1-score').innerText = t1Score; }
+            else { t2Score++; document.getElementById('t2-score').innerText = t2Score; }
+            
+            tripleActive = false;
+            if (t1Score >= tripleTargetScore || t2Score >= tripleTargetScore) {
+                const winner = t1Score >= tripleTargetScore ? 1 : 2;
+                document.getElementById('triple-msg').innerText = `PLAYER ${winner} WINS MATCH!`;
+                speak("Game Over");
+            } else {
+                setTimeout(() => { tripleActive = true; nextTripleRound(); }, 1500);
+            }
+        }
+    }
+
+    // --- MULTIPLAYER ---
+    function setMpStatus(text, isOk) {
+        const el = document.getElementById('mp-status');
+        if (!el) return;
+        el.innerHTML = text;
+        el.style.color = isOk ? "var(--success)" : "var(--muted)";
+    }
+
+    function updateRoomLabel(code) {
+        const el = document.getElementById('room-code-label');
+        if (!el) return;
+        el.innerHTML = code ? `(${code})` : '';
+    }
+
+    function updateRoomPeople(state) {
+        const list = document.getElementById('people-list');
+        if (!list || !state) return;
+        const p1Id = state.players ? state.players.p1 : null;
+        const p2Id = state.players ? state.players.p2 : null;
+        const nameMap = state.names || {};
+        const localNameInput = document.getElementById('player-name');
+        const localName = localNameInput && localNameInput.value.trim() ? localNameInput.value.trim() : 'Player';
+        const localId = mpState.socket ? mpState.socket.id : null;
+
+        const entries = [];
+        if (p1Id) entries.push({ role: 'P1', name: nameMap[p1Id] || (p1Id === localId ? localName : 'Player') });
+        if (p2Id) entries.push({ role: 'P2', name: nameMap[p2Id] || (p2Id === localId ? localName : 'Player') });
+
+        if (entries.length === 0) {
+            list.innerHTML = '<div class="people-item"><span>Waiting...</span><span class="people-role">--</span></div>';
+            return;
+        }
+
+        list.innerHTML = entries
+            .map(e => `<div class="people-item"><span>${e.name}</span><span class="people-role">${e.role}</span></div>`)
+            .join('');
+    }
+
+    function connectMultiplayer() {
+        if (typeof io === 'undefined') {
+            setMpStatus('Server not detected. Start Node server.', false);
+            return;
+        }
+
+        if (mpState.socket) return;
+
+        const roomInput = document.getElementById('room-code');
+        const roleSelect = document.getElementById('player-role');
+        const nameInput = document.getElementById('player-name');
+        const roomCode = roomInput ? roomInput.value.trim().toUpperCase() : '';
+        const role = roleSelect ? roleSelect.value : 'p1';
+        const playerName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Player';
+        const displayNode = document.getElementById('display-user-name');
+        if (displayNode) displayNode.innerText = `Welcome, ${playerName}`;
+
+        mpState.socket = io();
+        mpState.enabled = true;
+
+        setMpStatus('Connecting...', false);
+
+        mpState.socket.on('connect', () => {
+            mpState.socket.emit('createOrJoin', { roomCode, role, name: playerName });
+        });
+
+        mpState.socket.on('roomJoined', (data) => {
+            mpState.connected = true;
+            mpState.roomCode = data.roomCode;
+            mpState.isHost = data.isHost;
+            mpState.role = data.role === 'p2' ? 2 : 1;
+            setSeed(data.seed);
+            resetGameData();
+            updateRoomLabel(data.roomCode);
+            const badge = `<span class="mp-badge">Room ${data.roomCode}</span>`;
+            const roleBadge = `<span class="mp-badge">P${mpState.role}</span>`;
+            const hostBadge = mpState.isHost ? `<span class="mp-badge">Host</span>` : '';
+            setMpStatus(`${badge} ${roleBadge} ${hostBadge}`, true);
+            if (roomInput) roomInput.value = data.roomCode;
+            mpState.socket.emit('updateName', { roomCode: data.roomCode, name: playerName });
+        });
+
+        mpState.socket.on('joinError', (msg) => {
+            setMpStatus(msg || 'Join failed', false);
+            mpState.enabled = false;
+            mpState.connected = false;
+            mpState.socket.disconnect();
+            mpState.socket = null;
+        });
+
+        mpState.socket.on('roomState', (state) => {
+            if (!mpState.socket) return;
+            mpState.isHost = state.hostId === mpState.socket.id;
+            const badge = `<span class="mp-badge">Room ${state.roomCode}</span>`;
+            const roleBadge = `<span class="mp-badge">P${mpState.role}</span>`;
+            const hostBadge = mpState.isHost ? `<span class="mp-badge">Host</span>` : '';
+            setMpStatus(`${badge} ${roleBadge} ${hostBadge}`, true);
+            updateRoomLabel(state.roomCode);
+            updateRoomPeople(state);
+        });
+
+        mpState.socket.on('cmd', ({ name, payload }) => {
+            const handler = mpCmdHandlers[name];
+            if (handler) handler(payload);
+        });
+
+        mpState.socket.on('action', ({ game, payload }) => {
+            const handler = mpActionHandlers[game];
+            if (handler) handler(payload);
+        });
+    }
+
+    function sendCmd(name, payload) {
+        if (!mpState.socket || !mpState.connected || !mpState.roomCode) return;
+        mpState.socket.emit('cmd', { roomCode: mpState.roomCode, name, payload });
+    }
+
+    function sendAction(game, payload) {
+        if (!mpState.socket || !mpState.connected || !mpState.roomCode) return;
+        mpState.socket.emit('action', { roomCode: mpState.roomCode, game, payload });
+    }
+
+    function canControl(player) {
+        if (!mpState.enabled || !mpState.connected) return true;
+        return mpState.role === player;
+    }
+
+    const localFns = {
+        resetBattleGame,
+        startBattleRound,
+        resolveBattle,
+        resetDuelGame,
+        startDuelGame,
+        nextDuelRound,
+        resolveDuel,
+        resetSniperGame,
+        nextSniperRound,
+        resolveSniper,
+        resetTripleGame,
+        nextTripleRound,
+        resolveTriple
+    };
+
+    const mpCmdHandlers = {
+        resetBattleGame: () => localFns.resetBattleGame(),
+        startBattleRound: () => localFns.startBattleRound(),
+        resetDuelGame: () => localFns.resetDuelGame(),
+        startDuelGame: () => localFns.startDuelGame(),
+        nextDuelRound: () => localFns.nextDuelRound(),
+        resetSniperGame: () => localFns.resetSniperGame(),
+        nextSniperRound: () => localFns.nextSniperRound(),
+        resetTripleGame: () => localFns.resetTripleGame(),
+        nextTripleRound: () => localFns.nextTripleRound()
+    };
+
+    const mpActionHandlers = {
+        battle: (payload) => localFns.resolveBattle(payload.player, payload.choice),
+        duel: (payload) => localFns.resolveDuel(payload.player, payload.choicePos),
+        sniper: (payload) => localFns.resolveSniper(payload.player),
+        triple: (payload) => localFns.resolveTriple(payload.player, payload.choiceIdx)
+    };
+
+    resetBattleGame = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.resetBattleGame();
+        if (mpState.isHost) sendCmd('resetBattleGame');
+    };
+    startBattleRound = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.startBattleRound();
+        if (mpState.isHost) sendCmd('startBattleRound');
+    };
+    resolveBattle = function(player, choice) {
+        if (!mpState.enabled || !mpState.connected) return localFns.resolveBattle(player, choice);
+        sendAction('battle', { player, choice });
+    };
+
+    resetDuelGame = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.resetDuelGame();
+        if (mpState.isHost) sendCmd('resetDuelGame');
+    };
+    startDuelGame = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.startDuelGame();
+        if (mpState.isHost) sendCmd('startDuelGame');
+    };
+    nextDuelRound = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.nextDuelRound();
+        if (mpState.isHost) sendCmd('nextDuelRound');
+    };
+    resolveDuel = function(player, choicePos) {
+        if (!mpState.enabled || !mpState.connected) return localFns.resolveDuel(player, choicePos);
+        sendAction('duel', { player, choicePos });
+    };
+
+    resetSniperGame = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.resetSniperGame();
+        if (mpState.isHost) sendCmd('resetSniperGame');
+    };
+    nextSniperRound = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.nextSniperRound();
+        if (mpState.isHost) sendCmd('nextSniperRound');
+    };
+    resolveSniper = function(player) {
+        if (!mpState.enabled || !mpState.connected) return localFns.resolveSniper(player);
+        sendAction('sniper', { player });
+    };
+
+    resetTripleGame = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.resetTripleGame();
+        if (mpState.isHost) sendCmd('resetTripleGame');
+    };
+    nextTripleRound = function() {
+        if (!mpState.enabled || !mpState.connected) return localFns.nextTripleRound();
+        if (mpState.isHost) sendCmd('nextTripleRound');
+    };
+    resolveTriple = function(player, choiceIdx) {
+        if (!mpState.enabled || !mpState.connected) return localFns.resolveTriple(player, choiceIdx);
+        sendAction('triple', { player, choiceIdx });
+    };
+
+    // SHARED KEY LISTENER
+    document.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+
+        // BATTLE MODE (True/False)
+        if (battleActive && !battleOver) {
+            if (key === 'a' && canControl(1)) resolveBattle(1, true);
+            if (key === 's' && canControl(1)) resolveBattle(1, false);
+            if (key === 'k' && canControl(2)) resolveBattle(2, true);
+            if (key === 'l' && canControl(2)) resolveBattle(2, false);
+        }
+
+        // DUEL MODE (Left/Right)
+        if (duelActive) {
+            if (key === 'a' && canControl(1)) resolveDuel(1, 1);
+            if (key === 'd' && canControl(1)) resolveDuel(1, 2);
+            if (key === 'j' && canControl(2)) resolveDuel(2, 1);
+            if (key === 'l' && canControl(2)) resolveDuel(2, 2);
+        }
+
+        // SNIPER MODE (Shoot)
+        if (sniperActive) {
+            if (key === 's' && canControl(1)) resolveSniper(1);
+            if (key === 'k' && canControl(2)) resolveSniper(2);
+        }
+
+        // TRIPLE MODE (1/2/3)
+        if (tripleActive) {
+            // P1: A, S, D
+            if (key === 'a' && canControl(1)) resolveTriple(1, 1);
+            if (key === 's' && canControl(1)) resolveTriple(1, 2);
+            if (key === 'd' && canControl(1)) resolveTriple(1, 3);
+            
+            // P2: J, K, L
+            if (key === 'j' && canControl(2)) resolveTriple(2, 1);
+            if (key === 'k' && canControl(2)) resolveTriple(2, 2);
+            if (key === 'l' && canControl(2)) resolveTriple(2, 3);
+        }
+    });
+
+    function buildTable() { const sorted = [...fullVocab].sort((a,b) => a.eng.localeCompare(b.eng)); const tbody = document.getElementById('table-body'); tbody.innerHTML = sorted.map(v => `<tr><td style="font-weight:bold; color:var(--primary)">${v.eng} <button class="speak-btn" onclick="speak('${v.eng}')">🔊</button></td><td>${v.idn}</td><td class="example-text">"${v.ex}"</td></tr>`).join(''); }
+    function filterTable() { let input = document.getElementById("search").value.toLowerCase(); let rows = document.getElementById("table-body").getElementsByTagName("tr"); for (let i = 0; i < rows.length; i++) { let text = rows[i].textContent.toLowerCase(); rows[i].style.display = text.includes(input) ? "" : "none"; } }
+
+    buildTable();
+</script>
+
+</body>
+</html>
